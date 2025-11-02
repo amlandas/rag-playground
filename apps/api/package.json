@@ -1,0 +1,13 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/postinstall.mjs",
+    "dev": "python3 scripts/run.py dev",
+    "test": "python3 scripts/run.py test",
+    "fmt": "python3 scripts/run.py fmt",
+    "lint": "python3 scripts/run.py lint",
+    "typecheck": "python3 scripts/run.py typecheck"
+  }
+}

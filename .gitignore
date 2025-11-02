@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.pnpm-store/
+.next/
+*.log
+
+# Build artifacts
+.dist/
+dist/
+coverage/
+
+# Env files
+.env
+.env.*
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Others
+*.sqlite3

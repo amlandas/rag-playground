@@ -1,0 +1,4 @@
+Research Paper (Excerpt)
+Introduction: Retrieval-Augmented Generation (RAG) pairs an information retriever with a generator.
+Methods: We index documents into a vector store and retrieve top-k chunks as context.
+Results: Increasing chunk overlap can improve recall while increasing prompt token usage.

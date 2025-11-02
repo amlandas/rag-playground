@@ -1,0 +1,19 @@
+{
+  "name": "rag-playground",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@8.15.4",
+  "scripts": {
+    "dev": "concurrently -n WEB,API -c blue,green \"pnpm dev:web\" \"pnpm dev:api\"",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "dev:web": "pnpm --filter @rag/web dev",
+    "dev:api": "cd apps/api && poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "smoke": "bash tools/smoke.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

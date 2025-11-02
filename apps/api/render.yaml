@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: rag-playground-api
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerfilePath: ./apps/api/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: ""
+      - key: SESSION_TTL_MINUTES
+        value: "30"
+      - key: MAX_FILES_PER_UPLOAD
+        value: "6"
+      - key: MAX_FILE_MB
+        value: "10"
+      - key: MAX_PAGES_PER_PDF
+        value: "50"
+      - key: MAX_QUERIES_PER_SESSION
+        value: "20"
+      - key: MIN_RETRIEVAL_SIMILARITY
+        value: "0.18"
+      - key: ALLOW_ORIGINS
+        value: ""

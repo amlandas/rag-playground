@@ -1,0 +1,22 @@
+{
+  "title": "Build, test, and observe retrieval pipelines in one place.",
+  "tagline": "Prototype prompts, vector stores, and evaluation loops with real data.",
+  "highlights": [
+    {
+      "title": "Composable experiments",
+      "description": "Swap retrievers, rerankers, and prompts without rewriting orchestration logic."
+    },
+    {
+      "title": "Observability first",
+      "description": "Capture trace data, token usage, and quality metrics for every run."
+    },
+    {
+      "title": "Shared understanding",
+      "description": "Consistent schemas keep the web UI and API aligned on what a RAG scenario looks like."
+    },
+    {
+      "title": "Fast iteration",
+      "description": "Start with stub data, then connect to real corpora and evaluation pipelines as you grow."
+    }
+  ]
+}
