@@ -1,19 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type SVGProps } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import AdvancedSettings from "../../components/AdvancedSettings";
 import FeedbackBar from "../../components/FeedbackBar";
 import HealthBadge from "../../components/HealthBadge";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
+import { useAuth } from "../../components/AuthProvider";
 import {
   answerFromSnippetsSSE,
   buildIndex,
   compareRetrieval,
+  fetchHealthDetails,
+  fetchMetricsSummary,
   querySSE,
   uploadFiles,
 } from "../../lib/rag-api";
-import type { CompareProfile, RetrievedChunk, RetrievedPrelude } from "../../lib/types";
+import type {
+  AdminMetricsSummary,
+  AnswerMode,
+  CompareProfile,
+  ConfidenceLevel,
+  HealthDetails,
+  RetrievedChunk,
+  RetrievedPrelude,
+} from "../../lib/types";
+
+const ANSWER_MODE_DEFAULT = (
+  process.env.NEXT_PUBLIC_ANSWER_MODE_DEFAULT?.toLowerCase() === "blended" ? "blended" : "grounded"
+) as AnswerMode;
+
+function GoogleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 533.5 544.3" aria-hidden="true" focusable="false" {...props}>
+      <path
+        fill="#EA4335"
+        d="M533.5 278.4c0-17.4-1.5-34.1-4.3-50.4H272v95.4h147.5c-6.4 34.7-25.9 64.1-55.3 83.7v69.5h89.7c52.5-48.3 82.6-119.4 82.6-198.2z"
+      />
+      <path
+        fill="#34A853"
+        d="M272 544.3c74.9 0 137.7-24.9 183.6-67.6l-89.7-69.5c-24.2 16.3-55.2 25.8-93.9 25.8-72.3 0-133.6-48.7-155.7-114.1H23.5v71.6C69.1 477.1 164.3 544.3 272 544.3z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M116.3 318.9c-10.3-30.7-10.3-64 0-94.7v-71.6H23.5c-44.5 88.9-44.5 193.6 0 282.5l92.8-71.6z"
+      />
+      <path
+        fill="#4285F4"
+        d="M272 107.7c40.7-.6 79.2 15.7 107.7 44.3l80.4-80.4C409.7 24.4 343.8-1.9 272 0 164.3 0 69.1 67.2 23.5 164.3l92.8 71.6C138.4 156.4 199.7 107.7 272 107.7z"
+      />
+    </svg>
+  );
+}
 
 async function fetchSampleFiles(): Promise<File[]> {
   const samples = ["/samples/policy.txt", "/samples/paper.txt"];
@@ -38,6 +78,12 @@ function friendlyError(err: unknown): string {
   ) {
     return "Upload too large or exceeds limits. Try fewer or smaller files.";
   }
+  if (message.includes("401") || lower.includes("authentication required")) {
+    return "Sign in with Google to continue.";
+  }
+  if (message.includes("403") || lower.includes("admin access")) {
+    return "Admin access required for this action.";
+  }
   if (message.includes("429") || lower.includes("rate limit") || lower.includes("query cap")) {
     return "Session query limit reached. Please start a new session.";
   }
@@ -45,6 +91,27 @@ function friendlyError(err: unknown): string {
 }
 
 export default function Playground() {
+  const {
+    authEnabled,
+    user,
+    loading: authLoading,
+    error: authError,
+    signIn,
+    signOut,
+    refresh,
+  } = useAuth();
+  const authed = !authEnabled || !!user;
+  const authGateActive = authEnabled && (!user || authLoading);
+
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+  const clientIdPrefix = clientId ? `${clientId.slice(0, 8)}…` : "-";
+
+  const [refreshingSession, setRefreshingSession] = useState(false);
+  const [metricsSummary, setMetricsSummary] = useState<AdminMetricsSummary | null>(null);
+  const [healthDetails, setHealthDetails] = useState<HealthDetails | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [indexed, setIndexed] = useState(false);
   const [filesChosen, setFilesChosen] = useState<File[]>([]);
@@ -55,6 +122,9 @@ export default function Playground() {
 
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
+  const [answerComplete, setAnswerComplete] = useState(false);
+  const [answerMode, setAnswerMode] = useState<AnswerMode>(ANSWER_MODE_DEFAULT);
+  const [confidence, setConfidence] = useState<ConfidenceLevel | null>(null);
   const [sources, setSources] = useState<RetrievedChunk[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,15 +144,98 @@ export default function Playground() {
     temperature: 0.2,
     model: "gpt-4o-mini",
   });
-const [retrievedA, setRetrievedA] = useState<RetrievedChunk[]>([]);
-const [retrievedB, setRetrievedB] = useState<RetrievedChunk[]>([]);
+  const [retrievedA, setRetrievedA] = useState<RetrievedChunk[]>([]);
+  const [retrievedB, setRetrievedB] = useState<RetrievedChunk[]>([]);
 const [answerA, setAnswerA] = useState("");
 const [answerB, setAnswerB] = useState("");
+const [answerAComplete, setAnswerAComplete] = useState(false);
+const [answerBComplete, setAnswerBComplete] = useState(false);
 const [queryId, setQueryId] = useState<string | null>(null);
 
-  const canBuild = filesChosen.length > 0 && !!sessionId && !indexed && busy === "idle";
-  const canQuery = indexed && query.trim().length > 0 && busy !== "querying";
-  const canCompare = indexed && query.trim().length > 0 && busy !== "comparing";
+  const handleRefreshSession = useCallback(async () => {
+    if (!authEnabled) return;
+    setRefreshingSession(true);
+    try {
+      await refresh();
+    } catch (err) {
+      console.error("[auth] session refresh failed", err);
+    } finally {
+      setRefreshingSession(false);
+    }
+  }, [authEnabled, refresh]);
+
+  const loadAdminData = useCallback(async () => {
+    setAdminLoading(true);
+    try {
+      const [metrics, health] = await Promise.all([fetchMetricsSummary(), fetchHealthDetails()]);
+      setMetricsSummary(metrics);
+      setHealthDetails(health);
+      setAdminError(null);
+    } catch (err) {
+      console.error("[admin] metrics refresh failed", err);
+      setAdminError(friendlyError(err));
+    } finally {
+      setAdminLoading(false);
+    }
+  }, []);
+
+  const handleAdminRefresh = useCallback(() => {
+    void loadAdminData();
+  }, [loadAdminData]);
+
+  const copyMarkdown = useCallback((value: string) => {
+    if (!value) return;
+    void navigator.clipboard.writeText(value).catch(() => {
+      /* noop */
+    });
+  }, []);
+
+  const downloadMarkdown = useCallback((value: string, fileName: string) => {
+    if (!value) return;
+    const blob = new Blob([value], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const confidenceStyles: Record<ConfidenceLevel, string> = {
+    high: "border-emerald-300 bg-emerald-50 text-emerald-700",
+    medium: "border-amber-300 bg-amber-50 text-amber-700",
+    low: "border-rose-300 bg-rose-50 text-rose-700",
+  };
+  const confidenceLabels: Record<ConfidenceLevel, string> = {
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
+
+  const modeButtonClass = (value: AnswerMode) =>
+    `px-3 py-1 text-xs font-medium transition ${
+      answerMode === value
+        ? "bg-black text-white"
+        : "bg-white text-gray-600 hover:bg-gray-100"
+    }`;
+
+  const renderMarkdown = (value: string, fallback: string) =>
+    value ? (
+      <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none">
+        {value}
+      </ReactMarkdown>
+    ) : (
+      <p className="text-gray-500">{fallback}</p>
+    );
+
+  const canBuild =
+    authed && !authGateActive && filesChosen.length > 0 && !!sessionId && !indexed && busy === "idle";
+  const canQuery =
+    authed && !authGateActive && indexed && query.trim().length > 0 && busy !== "querying";
+  const canCompare =
+    authed && !authGateActive && indexed && query.trim().length > 0 && busy !== "comparing";
 
   async function useSamples() {
     const files = await fetchSampleFiles();
@@ -90,6 +243,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
     setSessionId(null);
     setIndexed(false);
     setAnswer("");
+    setConfidence(null);
     setSources([]);
     setError(null);
     setQueryId(null);
@@ -100,6 +254,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
     setSessionId(null);
     setIndexed(false);
     setAnswer("");
+    setConfidence(null);
     setSources([]);
     setError(null);
     setQueryId(null);
@@ -107,6 +262,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doUpload() {
     if (!filesChosen.length) return;
+    if (!authed) {
+      setError("Sign in with Google to upload files.");
+      return;
+    }
+    if (authGateActive) return;
     setBusy("uploading");
     setError(null);
     try {
@@ -123,6 +283,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doIndex() {
     if (!sessionId) return;
+    if (!authed) {
+      setError("Sign in with Google to build an index.");
+      return;
+    }
+    if (authGateActive) return;
     setBusy("indexing");
     setError(null);
     try {
@@ -137,27 +302,39 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doQuerySimple() {
     if (!sessionId) return;
+    if (!authed) {
+      setError("Sign in with Google to run queries.");
+      return;
+    }
+    if (authGateActive) return;
     setBusy("querying");
     setAnswer("");
+    setAnswerComplete(false);
+    setConfidence(null);
     setSources([]);
     setError(null);
-     setQueryId(null);
+    setQueryId(null);
     await querySSE(
       sessionId,
-      { query, k: 4, similarity: "cosine", temperature: 0.2, model: "gpt-4o-mini" },
+      { query, k: 4, similarity: "cosine", temperature: 0.2, model: "gpt-4o-mini", mode: answerMode },
       {
-        onRetrieved: (payload: RetrievedPrelude & { query_id?: string }) => {
+        onRetrieved: (payload: RetrievedPrelude) => {
           if (payload.query_id) {
             setQueryId(payload.query_id);
           }
-          setSources(payload.retrieved || []);
+          setConfidence(payload.confidence ?? null);
+          setSources(payload.retrieved ?? []);
         },
         onToken: (token) => {
           setAnswer((prev) => prev + token);
         },
-        onDone: () => setBusy("idle"),
+        onDone: () => {
+          setBusy("idle");
+          setAnswerComplete(true);
+        },
         onError: (err) => {
           setError(friendlyError(err));
+          setConfidence(null);
           setBusy("idle");
         },
       },
@@ -166,12 +343,19 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doCompare() {
     if (!sessionId) return;
+    if (!authed) {
+      setError("Sign in with Google to run comparisons.");
+      return;
+    }
+    if (authGateActive) return;
     setBusy("comparing");
     setError(null);
     setRetrievedA([]);
     setRetrievedB([]);
     setAnswerA("");
     setAnswerB("");
+    setAnswerAComplete(false);
+    setAnswerBComplete(false);
     try {
       const result = await compareRetrieval({
         session_id: sessionId,
@@ -198,7 +382,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
             setAnswerA((prev) => prev + token);
           },
           onDone: () => {
-            /* proceed to B */
+            setAnswerAComplete(true);
           },
           onError: (err) => {
             setError(friendlyError(err));
@@ -218,7 +402,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
           onToken: (token) => {
             setAnswerB((prev) => prev + token);
           },
-          onDone: () => setBusy("idle"),
+          onDone: () => {
+            setAnswerBComplete(true);
+            setBusy("idle");
+          },
           onError: (err) => {
             setError(friendlyError(err));
             setBusy("idle");
@@ -232,45 +419,263 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }
 
   useEffect(() => {
-    if (filesChosen.length > 0) {
-      void doUpload();
+    if (!filesChosen.length) {
+      return;
     }
+    if (!authed) {
+      setError("Sign in with Google to upload files.");
+      return;
+    }
+    if (authGateActive) {
+      return;
+    }
+    void doUpload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filesChosen]);
+  }, [filesChosen, authed, authGateActive]);
 
   useEffect(() => {
     if (mode !== "simple") {
       setQueryId(null);
+      setConfidence(null);
     }
   }, [mode]);
 
+  useEffect(() => {
+    setConfidence(null);
+  }, [answerMode]);
+
+  useEffect(() => {
+    if (authed) {
+      setError((prev) => (prev && prev.toLowerCase().includes("sign in") ? null : prev));
+    }
+  }, [authed]);
+
+  useEffect(() => {
+    if (authEnabled && user?.is_admin) {
+      void loadAdminData();
+    } else {
+      setMetricsSummary(null);
+      setHealthDetails(null);
+      setAdminError(null);
+    }
+  }, [authEnabled, user?.is_admin, loadAdminData]);
+
   return (
     <main className="grid min-h-screen grid-cols-12 gap-4 px-4 py-4">
-      <div className="col-span-12 flex items-center justify-between">
+      <div className="col-span-12 flex flex-wrap items-center justify-between gap-3">
         <div className="text-lg font-semibold">RAG Playground</div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">Mode:</span>
-          <select
-            value={mode}
-            onChange={(event) => setMode(event.target.value as "simple" | "advanced")}
-            className="rounded border px-2 py-1 text-sm"
-          >
-            <option value="simple">Simple</option>
-            <option value="advanced">Advanced (A/B)</option>
-          </select>
-          <span className="text-xs rounded-full border px-2 py-0.5 text-gray-600">
-            Ephemeral • auto-cleans after 30m idle
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Mode:</span>
+            <select
+              value={mode}
+              onChange={(event) => setMode(event.target.value as "simple" | "advanced")}
+              className="rounded border px-2 py-1 text-sm"
+            >
+              <option value="simple">Simple</option>
+              <option value="advanced">Advanced (A/B)</option>
+            </select>
+            <span className="text-xs rounded-full border px-2 py-0.5 text-gray-600">
+              Ephemeral • auto-cleans after 30m idle
+            </span>
+          </div>
           <MetricsDrawer />
           <HealthBadge />
+          {authEnabled ? (
+            user ? (
+              <div className="flex items-center gap-3 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="uppercase tracking-wide text-[10px] text-gray-500">Signed in as</span>
+                  <span className="max-w-[180px] truncate font-semibold text-gray-900" title={user.email}>
+                    {user.email}
+                  </span>
+                </div>
+                {user.is_admin ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                    Admin
+                  </span>
+                ) : null}
+                <button
+                  onClick={() => signOut()}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                  disabled={authLoading}
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => signIn()}
+                className="flex items-center gap-2 rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-900 disabled:opacity-60"
+                disabled={authLoading}
+              >
+                <GoogleIcon className="h-4 w-4" />
+                <span>{authLoading ? "Loading…" : "Sign in with Google"}</span>
+              </button>
+            )
+          ) : null}
         </div>
       </div>
+      {authEnabled ? (
+        <div className="col-span-12 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Auth diagnostics</h2>
+              <p className="text-xs text-gray-500">Client-side session information</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRefreshSession}
+              className="rounded border px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+              disabled={refreshingSession}
+            >
+              {refreshingSession ? "Refreshing…" : "Refresh session"}
+            </button>
+          </div>
+          <dl className="mt-3 grid grid-cols-1 gap-3 text-xs text-gray-700 sm:grid-cols-2 md:grid-cols-3">
+            <div>
+              <dt className="font-semibold text-gray-600">Auth enabled</dt>
+              <dd>{String(authEnabled)}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-gray-600">Client ID prefix</dt>
+              <dd>{clientIdPrefix}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-gray-600">Authenticated</dt>
+              <dd>{String(!!user)}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-gray-600">Email</dt>
+              <dd>{user?.email ?? "-"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-gray-600">Is admin</dt>
+              <dd>{String(user?.is_admin ?? false)}</dd>
+            </div>
+          </dl>
+          {authError ? (
+            <p className="mt-2 text-xs text-red-600">Authentication error: {authError}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {authEnabled && user?.is_admin ? (
+        <section className="col-span-12 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">Admin tools</h2>
+            <button
+              type="button"
+              onClick={handleAdminRefresh}
+              className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+              disabled={adminLoading}
+            >
+              {adminLoading ? "Refreshing…" : "Refresh data"}
+            </button>
+          </div>
+          {adminError ? <p className="text-xs text-red-700">{adminError}</p> : null}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded border border-white bg-white/80 p-3 text-xs text-gray-800 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                Metrics summary
+              </h3>
+              {metricsSummary ? (
+                <div className="mt-2 space-y-2">
+                  <div className="flex justify-between">
+                    <span>Total sessions</span>
+                    <span className="font-semibold">{metricsSummary.total_sessions}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total indices</span>
+                    <span className="font-semibold">{metricsSummary.total_indices}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total queries</span>
+                    <span className="font-semibold">{metricsSummary.total_queries}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-600">Queries by mode</p>
+                    <ul className="mt-1 space-y-1 text-[11px]">
+                      {Object.entries(metricsSummary.queries_by_mode).map(([mode, count]) => (
+                        <li key={mode} className="flex justify-between">
+                          <span>{mode}</span>
+                          <span className="font-semibold">{count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-600">Queries by confidence</p>
+                    <ul className="mt-1 space-y-1 text-[11px]">
+                      {Object.entries(metricsSummary.queries_by_confidence).map(([level, count]) => (
+                        <li key={level} className="flex justify-between">
+                          <span>{level}</span>
+                          <span className="font-semibold">{count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="text-[11px] text-gray-600">
+                    <div>Last query: {metricsSummary.last_query_ts ?? "-"}</div>
+                    <div>Last error: {metricsSummary.last_error_ts ?? "-"}</div>
+                    <div>Rerank: {metricsSummary.rerank_strategy_current}</div>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-gray-500">Metrics will appear after activity.</p>
+              )}
+            </div>
+            <div className="rounded border border-white bg-white/80 p-3 text-xs text-gray-800 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                Health details
+              </h3>
+              {healthDetails ? (
+                <dl className="mt-2 space-y-1 text-[11px]">
+                  <div className="flex justify-between">
+                    <span>Status</span>
+                    <span className="font-semibold">{healthDetails.status}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Effective rerank</span>
+                    <span className="font-semibold">{healthDetails.rerank_strategy_effective}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Configured rerank</span>
+                    <span>{healthDetails.rerank_strategy_configured}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>CE available</span>
+                    <span>{String(healthDetails.ce_available)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>LLM available</span>
+                    <span>{String(healthDetails.llm_available)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Default mode</span>
+                    <span>{healthDetails.answer_mode_default}</span>
+                  </div>
+                  {healthDetails.version ? (
+                    <div className="flex justify-between">
+                      <span>Version</span>
+                      <span>{healthDetails.version}</span>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : (
+                <p className="mt-2 text-xs text-gray-500">Health details unavailable.</p>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <aside className="col-span-3 space-y-4 rounded-xl border p-3">
         <div>
           <div className="mb-2 text-sm font-semibold">Files</div>
           <Uploader
-            disabled={busy !== "idle"}
+            disabled={busy !== "idle" || authGateActive}
             onFilesSelected={handleFilesSelected}
             onUseSamples={useSamples}
           />
@@ -340,12 +745,63 @@ const [queryId, setQueryId] = useState<string | null>(null);
             </button>
           )}
         </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-700">Answer mode:</span>
+            <div className="flex overflow-hidden rounded-lg border border-gray-300">
+              <button
+                type="button"
+                className={modeButtonClass("grounded")}
+                onClick={() => setAnswerMode("grounded")}
+              >
+                Document-only
+              </button>
+              <button
+                type="button"
+                className={modeButtonClass("blended")}
+                onClick={() => setAnswerMode("blended")}
+              >
+                Doc + world context
+              </button>
+            </div>
+          </div>
+          <div className="text-[11px] text-gray-500">
+            World notes appear only in Doc + world context.
+          </div>
+        </div>
 
         {mode === "simple" ? (
           <div className="mt-4">
-            <div className="mb-2 text-sm font-semibold">Answer</div>
-            <div className="min-h-[200px] whitespace-pre-wrap rounded-lg border p-3 text-sm text-gray-800">
-              {answer || "Answer stream will appear here."}
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-semibold">Answer</div>
+              {confidence ? (
+                <span
+                  className={`rounded-full border px-2 py-1 font-medium ${confidenceStyles[confidence]}`}
+                >
+                  Confidence: {confidenceLabels[confidence]}
+                </span>
+              ) : null}
+            </div>
+            <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[200px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
+              {renderMarkdown(answer, "Answer stream will appear here.")}
+            </div>
+            <div className="mt-2 flex justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => copyMarkdown(answer)}
+                disabled={!answer}
+                className="rounded border px-2 py-1 disabled:opacity-50"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadMarkdown(answer, "answer.md")}
+                disabled={!answerComplete || !answer}
+                className="rounded border px-2 py-1 disabled:opacity-50"
+              >
+                Download .md
+              </button>
             </div>
             <div className="mt-2">
               <FeedbackBar queryId={queryId} />
@@ -355,8 +811,26 @@ const [queryId, setQueryId] = useState<string | null>(null);
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <div className="mb-1 text-sm font-semibold">Answer — Profile A</div>
-              <div className="min-h-[160px] whitespace-pre-wrap rounded-lg border p-3 text-sm text-gray-800">
-                {answerA || "Answer A stream will appear here."}
+              <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[160px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
+                {renderMarkdown(answerA, "Answer A stream will appear here.")}
+              </div>
+              <div className="mt-2 flex justify-end gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => copyMarkdown(answerA)}
+                  disabled={!answerA}
+                  className="rounded border px-2 py-1 disabled:opacity-50"
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadMarkdown(answerA, "answer-profile-a.md")}
+                  disabled={!answerAComplete || !answerA}
+                  className="rounded border px-2 py-1 disabled:opacity-50"
+                >
+                  Download .md
+                </button>
               </div>
               <div className="mt-2 rounded border p-2">
                 <div className="mb-1 text-xs font-semibold uppercase text-gray-500">Sources — A</div>
@@ -377,8 +851,26 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
             <div>
               <div className="mb-1 text-sm font-semibold">Answer — Profile B</div>
-              <div className="min-h-[160px] whitespace-pre-wrap rounded-lg border p-3 text-sm text-gray-800">
-                {answerB || "Answer B stream will appear here."}
+              <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[160px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
+                {renderMarkdown(answerB, "Answer B stream will appear here.")}
+              </div>
+              <div className="mt-2 flex justify-end gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => copyMarkdown(answerB)}
+                  disabled={!answerB}
+                  className="rounded border px-2 py-1 disabled:opacity-50"
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadMarkdown(answerB, "answer-profile-b.md")}
+                  disabled={!answerBComplete || !answerB}
+                  className="rounded border px-2 py-1 disabled:opacity-50"
+                >
+                  Download .md
+                </button>
               </div>
               <div className="mt-2 rounded border p-2">
                 <div className="mb-1 text-xs font-semibold uppercase text-gray-500">Sources — B</div>

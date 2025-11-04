@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-const MAX_FILE_MB = 10;
+const MAX_FILE_MB = 100;
 
 type Props = {
   disabled?: boolean;
@@ -64,7 +64,9 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
           {busy ? "Loading…" : "Use sample dataset"}
         </button>
       </div>
-      <p className="text-xs text-gray-500">Accepted: PDF, TXT, MD. Avoid sensitive data.</p>
+      <p className="text-xs text-gray-500">
+        Accepted: PDF, TXT, MD. Up to {MAX_FILE_MB}MB per file (max 20 files). Avoid sensitive data.
+      </p>
     </div>
   );
 }

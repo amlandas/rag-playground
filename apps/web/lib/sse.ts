@@ -15,6 +15,7 @@ export async function postSSE(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body ?? {}),
+      credentials: "include",
     });
     if (!res.ok || !res.body) {
       throw new Error(`SSE HTTP ${res.status}`);
@@ -41,7 +42,13 @@ export async function postSSE(
           if (line.startsWith("event:")) {
             event = line.slice(6).trim();
           } else if (line.startsWith("data:")) {
-            const value = line.slice(5).trim();
+            let value = line.slice(5);
+            if (value.startsWith(" ")) {
+              value = value.slice(1);
+            }
+            if (value.endsWith("\r")) {
+              value = value.slice(0, -1);
+            }
             data = data ? `${data}\n${value}` : value;
           }
         }

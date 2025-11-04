@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import List
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+import numpy as np
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from ..config import settings
 from ..schemas import IndexRequest, IndexResponse, UploadResponse
@@ -11,13 +12,20 @@ from ..services.chunk import chunk_text
 from ..services.embed import embed_texts
 from ..services.extract import extract_text_from_pdf_bytes, extract_text_from_txt_bytes
 from ..services.index import build_faiss_index
-from ..services.session import ensure_session, new_session
+from ..services.retrieve import build_bm25
+from ..services.session import SessionIndex, ensure_session, new_session, set_session_index
+from ..services.observability import record_index_built
+from ..services.session_auth import SessionUser, get_session_user, maybe_require_auth
 
 router = APIRouter()
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload(files: List[UploadFile] = File(...)):
+async def upload(
+    files: List[UploadFile] = File(...),
+    user: SessionUser | None = Depends(get_session_user),
+):
+    maybe_require_auth(user)
     if len(files) > settings.MAX_FILES_PER_UPLOAD:
         raise HTTPException(
             status_code=413,
@@ -65,7 +73,11 @@ async def upload(files: List[UploadFile] = File(...)):
 
 
 @router.post("/index", response_model=IndexResponse)
-async def build_index(req: IndexRequest):
+async def build_index(
+    req: IndexRequest,
+    user: SessionUser | None = Depends(get_session_user),
+):
+    maybe_require_auth(user)
     sess = ensure_session(req.session_id)
     if not sess["docs"]:
         raise HTTPException(status_code=400, detail="No documents uploaded for this session.")
@@ -77,7 +89,24 @@ async def build_index(req: IndexRequest):
             chunk_map.append((doc_id, start, end, ch_txt))
             all_chunks.append(ch_txt)
     X = embed_texts(all_chunks, model=req.embed_model)
-    faiss_index = build_faiss_index(X, metric="cosine")
+    X = X.astype(np.float32)
+    norms = np.linalg.norm(X, axis=1, keepdims=True) + 1e-8
+    X_norm = X / norms
+    faiss_index = build_faiss_index(X_norm, metric="cosine")
+    bm25_index, bm25_tokens = build_bm25(all_chunks)
     idx_id = str(uuid.uuid4())
     sess["index"] = {"faiss": faiss_index, "chunk_map": chunk_map, "embed_model": req.embed_model}
+    set_session_index(
+        req.session_id,
+        SessionIndex(
+            faiss_index=faiss_index,
+            chunk_map=chunk_map,
+            embeddings=X_norm,
+            texts=all_chunks,
+            bm25=bm25_index,
+            bm25_tokens=bm25_tokens,
+            embed_model=req.embed_model,
+        ),
+    )
+    record_index_built()
     return IndexResponse(index_id=idx_id)

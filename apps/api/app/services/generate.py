@@ -1,18 +1,24 @@
 from __future__ import annotations
 
-from typing import Iterable, List, Tuple
+import json
+from typing import Iterable, List, Mapping, Sequence
 
 from openai import OpenAI
 
 from ..config import settings
+from .compose import postprocess_chunk
 
-SYSTEM_PROMPT = (
-    "You are a retrieval-augmented assistant. "
-    "Use only the provided context snippets to answer. "
-    "If the context is insufficient, reply: "
-    "'Insufficient context in the provided documents to answer confidently.' "
-    "Always cite sources inline like [1], [2]."
-)
+HEADING_TITLES = ("## From your documents", "## World notes")
+
+
+def _normalize_stream_chunk(chunk: str, tail: str) -> tuple[str, str]:
+    if not chunk:
+        return chunk, tail
+    normalized = chunk
+    combined = tail + normalized
+    new_tail = combined[-200:]
+    normalized_output = combined[len(tail):]
+    return normalized_output, new_tail
 
 
 def get_client() -> OpenAI:
@@ -21,29 +27,58 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-def format_context(snippets: List[Tuple[int, str]]) -> str:
-    lines = []
-    for rank, text in snippets:
-        lines.append(f"[{rank}] {text}")
-    return "\n\n".join(lines)
-
-
-def stream_answer(prompt: str, snippets: List[Tuple[int, str]], model: str, temperature: float) -> Iterable[str]:
+def stream_chat(
+    messages: Sequence[Mapping[str, str]],
+    *,
+    model: str,
+    temperature: float,
+    max_tokens: int | None = None,
+) -> Iterable[str]:
     client = get_client()
-    context = format_context(snippets)
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {prompt}"},
-    ]
+    request_kwargs = {
+        "model": model,
+        "messages": list(messages),
+        "temperature": temperature,
+        "stream": True,
+    }
+    if max_tokens:
+        request_kwargs["max_tokens"] = max_tokens
 
-    with client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        stream=True,
-    ) as stream:
+    tail = ""
+    with client.chat.completions.create(**request_kwargs) as stream:
         for event in stream:
             choice = event.choices[0]
             delta = getattr(choice, "delta", None)
             if delta and delta.content:
-                yield delta.content
+                chunk = postprocess_chunk(delta.content)
+                normalized, tail = _normalize_stream_chunk(chunk, tail)
+                yield normalized
+
+
+def stream_answer(
+    *,
+    prompt: str,
+    snippets: Sequence[tuple[int, str]],
+    model: str,
+    temperature: float,
+) -> Iterable[str]:
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Answer using ONLY the provided snippets. Use inline references like [rank] when a snippet "
+                "supports a claim. If the snippets lack the answer, reply with 'I don't know from the provided snippets.'"
+            ),
+        },
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "question": prompt,
+                    "snippets": [{"rank": rank, "text": text} for rank, text in snippets],
+                },
+                ensure_ascii=False,
+            ),
+        },
+    ]
+    return stream_chat(messages, model=model, temperature=temperature, max_tokens=None)

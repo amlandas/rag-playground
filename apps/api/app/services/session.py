@@ -1,10 +1,32 @@
 import time
 import uuid
-from typing import Any, Dict
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 from ..config import settings
+from .observability import record_session_created
 
 _SESSIONS: Dict[str, Dict[str, Any]] = {}
+_SESSION_INDEXES: Dict[str, "SessionIndex"] = {}
+
+
+@dataclass
+class SessionIndex:
+    faiss_index: Any
+    chunk_map: list[Any]
+    embeddings: Any = None  # expected normalized np.ndarray
+    texts: list[str] | None = None
+    bm25: Any = None
+    bm25_tokens: list[list[str]] | None = None
+    embed_model: str | None = None
+
+
+def set_session_index(sid: str, index: SessionIndex) -> None:
+    _SESSION_INDEXES[sid] = index
+
+
+def get_session_index(sid: str) -> Optional[SessionIndex]:
+    return _SESSION_INDEXES.get(sid)
 
 
 def new_session() -> str:
@@ -16,6 +38,7 @@ def new_session() -> str:
         "queries_used": 0,
         "last_query_ts": None,
     }
+    record_session_created()
     return sid
 
 
@@ -43,3 +66,4 @@ def cleanup_expired_sessions() -> None:
     for sid in list(_SESSIONS.keys()):
         if now - _SESSIONS[sid]["created"] > ttl:
             del _SESSIONS[sid]
+            _SESSION_INDEXES.pop(sid, None)

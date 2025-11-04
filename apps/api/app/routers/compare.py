@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..schemas import CompareRequest
 from ..services.chunk import chunk_text
 from ..services.embed import embed_texts
 from ..services.index import build_faiss_index, search_index
 from ..services.session import ensure_session
+from ..services.session_auth import SessionUser, get_session_user, maybe_require_auth
 
 router = APIRouter()
 
 
 @router.post("/compare")
-async def compare(req: CompareRequest):
+async def compare(req: CompareRequest, user: SessionUser | None = Depends(get_session_user)):
+    maybe_require_auth(user)
     sess = ensure_session(req.session_id)
     if not sess.get("docs"):
         raise HTTPException(status_code=400, detail="No documents for this session.")

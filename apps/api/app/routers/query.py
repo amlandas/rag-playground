@@ -1,21 +1,26 @@
 from __future__ import annotations
 
+import logging
 import json
 from time import perf_counter
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from ..config import settings
 from ..schemas import QueryRequest
-from ..services.embed import embed_texts
-from ..services.generate import stream_answer
-from ..services.index import search_index
+from ..services.compose import build_messages
+from ..services.generate import stream_chat
+from ..services.pipeline import prepare_answer_context, resolve_answer_mode
 from ..services.session import ensure_session, incr_query
 from ..services.telemetry import new_query_id, record_query_event
 from ..services.tokenizer import estimate_tokens
+from ..services.observability import record_query, record_query_error
+from ..services.session_auth import SessionUser, get_session_user, maybe_require_auth
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 def sse_wrap(prelude_obj, generator, on_complete):
@@ -29,86 +34,116 @@ def sse_wrap(prelude_obj, generator, on_complete):
 
 
 @router.post("/query")
-async def query(req: QueryRequest):
-    sess = ensure_session(req.session_id)
-    if not sess.get("index"):
-        raise HTTPException(status_code=400, detail="No index for this session. Call /api/index first.")
-    if int(sess.get("queries_used", 0)) >= settings.MAX_QUERIES_PER_SESSION:
-        raise HTTPException(status_code=429, detail="Rate limit: session query cap reached")
+async def query(
+    req: QueryRequest,
+    user: SessionUser | None = Depends(get_session_user),
+):
+    maybe_require_auth(user)
+    try:
+        sess = ensure_session(req.session_id)
+        if not sess.get("index"):
+            raise HTTPException(status_code=400, detail="No index for this session. Call /api/index first.")
+        if int(sess.get("queries_used", 0)) >= settings.MAX_QUERIES_PER_SESSION:
+            raise HTTPException(status_code=429, detail="Rate limit: session query cap reached")
 
-    idx = sess["index"]["faiss"]
-    chunk_map = sess["index"]["chunk_map"]
-    embed_model = sess["index"]["embed_model"]
-
-    query_id = new_query_id()
-    start = perf_counter()
-
-    qv = embed_texts([req.query], model=embed_model)
-    D, I = search_index(idx, qv, k=req.k, metric=req.similarity)
-
-    snippets = []
-    retrieved_meta = []
-    top_similarity: float | None = None
-    for rank, row_idx in enumerate(I[0], start=1):
-        if row_idx < 0 or row_idx >= len(chunk_map):
-            continue
-        doc_id, start_idx, end_idx, txt = chunk_map[row_idx]
-        similarity = float(D[0][rank - 1])
-        if top_similarity is None:
-            top_similarity = similarity
-        snippets.append((rank, txt))
-        retrieved_meta.append(
-            {
-                "rank": rank,
-                "doc_id": doc_id,
-                "start": start_idx,
-                "end": end_idx,
-                "text": txt[:1200],
-                "similarity": similarity,
-            }
+        query_id = new_query_id()
+        start = perf_counter()
+        mode = resolve_answer_mode(req.mode)
+        context = prepare_answer_context(
+            req.session_id,
+            req.query,
+            req.k,
+            req.similarity,
+            mode,
+            session=sess,
         )
 
-    incr_query(req.session_id)
+        sources = context["sources"]
+        citations = context["citations"]
+        retrieved_meta = context["retrieved_meta"]
+        top_similarity = context["top_similarity"]
+        attempt = context["attempt"]
+        floor = context["floor"]
+        rerank_strategy = context["rerank_strategy"]
+        rerank_scores = context["rerank_scores"]
+        insufficient = context["insufficient"]
+        hits = context["hits"]
+        confidence = context["confidence"]
 
-    def finish(output_text: str) -> None:
-        latency_ms = (perf_counter() - start) * 1000.0
-        record_query_event(
+        logger.info(
+            "[LOG RETRIEVE] %s",
             {
-                "query_id": query_id,
-                "session_id": req.session_id,
-                "latency_ms": latency_ms,
-                "k": req.k,
-                "similarity_metric": req.similarity,
-                "top_similarity": top_similarity,
-                "model": req.model,
-                "temperature": req.temperature,
-                "prompt_tokens_est": estimate_tokens(req.query),
-                "output_tokens_est": estimate_tokens(output_text),
-            }
+                "q": req.query,
+                "strategy": settings.RETRIEVER_STRATEGY,
+                "attempt": attempt,
+                "floor": floor,
+                "selected": [hit.idx for hit in hits],
+                "dense_scores": [hit.dense_score for hit in hits],
+                "lexical_scores": [hit.lexical_score for hit in hits],
+                "fused_scores": [hit.fused_score for hit in hits],
+                "rerank_strategy": rerank_strategy,
+                "rerank_scores": rerank_scores or None,
+                "mode": mode,
+            },
         )
 
-    prelude = {"query_id": query_id, "retrieved": retrieved_meta}
+        incr_query(req.session_id)
+        record_query(mode, confidence)
 
-    def insufficient_stream():
-        yield "Insufficient context in the provided documents to answer confidently."
+        def finish(output_text: str) -> None:
+            latency_ms = (perf_counter() - start) * 1000.0
+            record_query_event(
+                {
+                    "query_id": query_id,
+                    "session_id": req.session_id,
+                    "latency_ms": latency_ms,
+                    "k": req.k,
+                    "similarity_metric": req.similarity,
+                    "top_similarity": top_similarity,
+                    "model": req.model,
+                    "temperature": req.temperature,
+                    "prompt_tokens_est": estimate_tokens(req.query),
+                    "output_tokens_est": estimate_tokens(output_text),
+                }
+            )
 
-    if not snippets or (
-        req.similarity != "l2"
-        and top_similarity is not None
-        and top_similarity < settings.MIN_RETRIEVAL_SIMILARITY
-    ):
+        prelude = {
+            "query_id": query_id,
+            "retrieved": retrieved_meta,
+            "citations": citations,
+            "mode": mode,
+            "confidence": confidence,
+        }
+
+        def insufficient_stream():
+            yield (
+                "Uploaded documents do not contain enough information to answer this question. "
+                "Add more relevant files or switch to Doc + world context mode."
+            )
+
+        if insufficient and mode == "grounded":
+            return StreamingResponse(
+                sse_wrap(prelude, insufficient_stream(), finish),
+                media_type="text/event-stream",
+            )
+
+        messages = build_messages(req.query, sources, mode)
+        temperature = req.temperature if req.temperature is not None else settings.ANSWER_TEMP
+        max_tokens = settings.ANSWER_MAX_TOKENS if settings.ANSWER_MD else None
+
+        gen = stream_chat(
+            messages,
+            model=req.model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
         return StreamingResponse(
-            sse_wrap(prelude, insufficient_stream(), finish),
+            sse_wrap(prelude, gen, finish),
             media_type="text/event-stream",
         )
-
-    gen = stream_answer(
-        prompt=req.query,
-        snippets=snippets,
-        model=req.model,
-        temperature=req.temperature,
-    )
-    return StreamingResponse(
-        sse_wrap(prelude, gen, finish),
-        media_type="text/event-stream",
-    )
+    except HTTPException:
+        record_query_error()
+        raise
+    except Exception:
+        record_query_error()
+        raise

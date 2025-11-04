@@ -14,14 +14,56 @@ services:
       - key: SESSION_TTL_MINUTES
         value: "30"
       - key: MAX_FILES_PER_UPLOAD
-        value: "6"
+        value: "20"
       - key: MAX_FILE_MB
-        value: "10"
+        value: "100"
       - key: MAX_PAGES_PER_PDF
-        value: "50"
+        value: "2000"
       - key: MAX_QUERIES_PER_SESSION
         value: "20"
-      - key: MIN_RETRIEVAL_SIMILARITY
+      - key: SIMILARITY_FLOOR
         value: "0.18"
+      - key: MAX_RETRIEVED
+        value: "8"
+      - key: RETRIEVER_STRATEGY
+        value: "hybrid"
+      - key: DENSE_K
+        value: "40"
+      - key: LEXICAL_K
+        value: "40"
+      - key: FUSION_RRF_K
+        value: "60"
+      - key: USE_MMR
+        value: "true"
+      - key: MMR_LAMBDA
+        value: "0.7"
+      - key: ANSWER_TOP_K
+        value: "8"
+      - key: FALLBACK_WIDEN_K
+        value: "30"
+      - key: RERANK_STRATEGY
+        value: "ce"
+      - key: RERANK_TOP_N
+        value: "30"
+      - key: RERANK_KEEP
+        value: "8"
+      - key: CE_MODEL_NAME
+        value: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+      - key: LLM_RERANK_MODEL
+        value: "gpt-4o-mini"
+      - key: LLM_RERANK_MAX_CHARS
+        value: "1200"
+      - key: ANSWER_MD
+        value: "true"
+      - key: ANSWER_TONE
+        value: "concise"
+      - key: ANSWER_MAX_TOKENS
+        value: "800"
+      - key: ANSWER_TEMP
+        value: "0.2"
+      - key: ANSWER_MODE_DEFAULT
+        value: "grounded"
+      - key: ANSWER_CONFIDENCE_ENABLED
+        value: "true"
       - key: ALLOW_ORIGINS
         value: ""

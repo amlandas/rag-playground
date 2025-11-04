@@ -22,11 +22,12 @@ class IndexResponse(BaseModel):
 class QueryRequest(BaseModel):
     session_id: str
     query: str
-    k: int = 4
+    k: int = 8
     similarity: Literal["cosine", "l2"] = "cosine"
     temperature: float = 0.2
     model: str = "gpt-4o-mini"
     rerank: bool = False
+    mode: Optional[Literal["grounded", "blended"]] = None
 
 
 class RetrievedChunk(BaseModel):

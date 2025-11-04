@@ -1,0 +1,26 @@
+[
+  {
+    "query": "What is our PTO policy?",
+    "mode": "grounded",
+    "expected_contains": [
+      "1.5 days of PTO per month",
+      "3 days per week"
+    ],
+    "forbidden_contains": [
+      "World notes",
+      "I don't know from the provided documents."
+    ],
+    "golden_answer": "Employees accrue 1.5 days of PTO per month under the company policy.[1]\\n\\nRemote work is allowed up to 3 days per week with manager approval.[1]\\n\\nAll confidential information must not be stored on personal devices to protect company data.[1]\\n\\nSources: [1]"
+  },
+  {
+    "query": "What security guidance is highlighted?",
+    "mode": "grounded",
+    "expected_contains": [
+      "confidential information must not be stored on personal devices"
+    ],
+    "forbidden_contains": [
+      "World notes"
+    ],
+    "golden_answer": "The handbook reminds employees that confidential information must not be stored on personal devices, underscoring the importance of safeguarding company data.[1]\\n\\nSources: [1]"
+  }
+]

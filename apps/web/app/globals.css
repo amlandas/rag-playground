@@ -4,3 +4,14 @@
 
 /* Simple page scaffolding */
 html, body, :root { height: 100%; }
+
+/* ---- RAG answer formatting ---- */
+.answer-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.answer-body .prose {
+  max-width: none;
+}

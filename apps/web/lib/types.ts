@@ -1,15 +1,39 @@
 export type UploadResponse = { session_id: string; doc_ids: string[] };
 export type IndexResponse = { index_id: string };
 
+export type AnswerMode = "grounded" | "blended";
+
+export type AuthUser = {
+  email: string;
+  is_admin: boolean;
+};
+
+export type AuthSession =
+  | { authenticated: false }
+  | ({ authenticated: true } & AuthUser);
+
 export type RetrievedChunk = {
   rank: number;
   doc_id: string;
   start: number;
   end: number;
   text: string;
+  similarity?: number;
+  lexical_score?: number;
+  fused_score?: number;
+  rerank_score?: number;
+  citation_id?: number | null;
 };
 
-export type RetrievedPrelude = { retrieved: RetrievedChunk[] };
+export type ConfidenceLevel = "high" | "medium" | "low";
+
+export type RetrievedPrelude = {
+  query_id?: string;
+  retrieved: RetrievedChunk[];
+  citations?: Array<{ id: number; meta: Record<string, unknown> }>;
+  mode?: AnswerMode;
+  confidence?: ConfidenceLevel | null;
+};
 
 export type CompareProfile = {
   name: string;
@@ -33,7 +57,7 @@ export type CompareResult = {
   profile_b: RetrievedChunk[];
 };
 
-export type MetricsSummary = {
+export type AdminMetricsSummary = {
   count: number;
   avg_latency_ms: number | null;
   avg_top_sim: number | null;
@@ -56,4 +80,34 @@ export type MetricsResponse = {
   summary: MetricsSummary;
   events: MetricsEvent[];
   feedback: { query_id: string; rating: number; reason?: string; ts: number }[];
+};
+
+export type MetricsSummary = {
+  total_sessions: number;
+  total_indices: number;
+  total_queries: number;
+  queries_by_mode: {
+    grounded: number;
+    blended: number;
+  };
+  queries_by_confidence: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+  last_query_ts: string | null;
+  last_error_ts: string | null;
+  rerank_strategy_current: string;
+  rerank_strategy_configured: string;
+  answer_mode_default: string;
+};
+
+export type HealthDetails = {
+  status: string;
+  rerank_strategy_effective: string;
+  rerank_strategy_configured: string;
+  ce_available: boolean;
+  llm_available: boolean;
+  answer_mode_default: string;
+  version?: string;
 };
