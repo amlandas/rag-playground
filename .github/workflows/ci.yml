@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  web:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,11 +24,6 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Install dependencies
         run: pnpm install
 
@@ -38,5 +33,32 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
-      - name: Test
-        run: pnpm -r test
+      - name: Web tests
+        working-directory: apps/web
+        run: pnpm test:sanity
+
+  api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: poetry install --no-interaction
+
+      - name: API tests
+        working-directory: apps/api
+        env:
+          SESSION_SECRET: ci-test-secret
+          GOOGLE_AUTH_ENABLED: "false"
+        run: poetry run pytest -q
