@@ -9,6 +9,7 @@ import HealthBadge from "../../components/HealthBadge";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
 import { useAuth } from "../../components/AuthProvider";
+import { API_BASE } from "../../lib/api";
 import {
   answerFromSnippetsSSE,
   buildIndex,
@@ -100,12 +101,18 @@ export default function Playground() {
     signOut,
     refresh,
   } = useAuth();
-  const authed = !authEnabled || !!user;
-  const authGateActive = authEnabled && (!user || authLoading);
+  const authSatisfied = !authEnabled || !!user;
+  const authGateActive = authEnabled && authLoading;
+  const authRequired = authEnabled && !user;
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   const clientIdPrefix = clientId ? `${clientId.slice(0, 8)}…` : "-";
+  const apiBaseUrl = API_BASE;
 
+  const [apiStatus, setApiStatus] = useState<{ state: "idle" | "checking" | "ok" | "error"; detail: string }>({
+    state: "idle",
+    detail: "",
+  });
   const [refreshingSession, setRefreshingSession] = useState(false);
   const [metricsSummary, setMetricsSummary] = useState<AdminMetricsSummary | null>(null);
   const [healthDetails, setHealthDetails] = useState<HealthDetails | null>(null);
@@ -151,6 +158,30 @@ const [answerB, setAnswerB] = useState("");
 const [answerAComplete, setAnswerAComplete] = useState(false);
 const [answerBComplete, setAnswerBComplete] = useState(false);
 const [queryId, setQueryId] = useState<string | null>(null);
+
+  const checkApiStatus = useCallback(async () => {
+    setApiStatus({ state: "checking", detail: "" });
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/health`, { cache: "no-store" });
+      if (!response.ok) {
+        const text = (await response.text().catch(() => "")) || response.statusText;
+        throw new Error(`${response.status} ${text}`.trim());
+      }
+      setApiStatus({ state: "ok", detail: `reachable (${response.status})` });
+    } catch (error: any) {
+      const detail =
+        typeof error?.message === "string"
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : "Unknown error";
+      setApiStatus({ state: "error", detail });
+    }
+  }, [apiBaseUrl]);
+
+  useEffect(() => {
+    void checkApiStatus();
+  }, [checkApiStatus]);
 
   const handleRefreshSession = useCallback(async () => {
     if (!authEnabled) return;
@@ -231,11 +262,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
     );
 
   const canBuild =
-    authed && !authGateActive && filesChosen.length > 0 && !!sessionId && !indexed && busy === "idle";
+    authSatisfied && !authGateActive && filesChosen.length > 0 && !!sessionId && !indexed && busy === "idle";
   const canQuery =
-    authed && !authGateActive && indexed && query.trim().length > 0 && busy !== "querying";
+    authSatisfied && !authGateActive && indexed && query.trim().length > 0 && busy !== "querying";
   const canCompare =
-    authed && !authGateActive && indexed && query.trim().length > 0 && busy !== "comparing";
+    authSatisfied && !authGateActive && indexed && query.trim().length > 0 && busy !== "comparing";
 
   async function useSamples() {
     const files = await fetchSampleFiles();
@@ -262,7 +293,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doUpload() {
     if (!filesChosen.length) return;
-    if (!authed) {
+    if (authRequired) {
       setError("Sign in with Google to upload files.");
       return;
     }
@@ -283,7 +314,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doIndex() {
     if (!sessionId) return;
-    if (!authed) {
+    if (authRequired) {
       setError("Sign in with Google to build an index.");
       return;
     }
@@ -302,7 +333,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doQuerySimple() {
     if (!sessionId) return;
-    if (!authed) {
+    if (authRequired) {
       setError("Sign in with Google to run queries.");
       return;
     }
@@ -343,7 +374,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   async function doCompare() {
     if (!sessionId) return;
-    if (!authed) {
+    if (authRequired) {
       setError("Sign in with Google to run comparisons.");
       return;
     }
@@ -422,7 +453,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
     if (!filesChosen.length) {
       return;
     }
-    if (!authed) {
+    if (authRequired) {
       setError("Sign in with Google to upload files.");
       return;
     }
@@ -431,7 +462,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
     }
     void doUpload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filesChosen, authed, authGateActive]);
+  }, [filesChosen, authRequired, authGateActive]);
 
   useEffect(() => {
     if (mode !== "simple") {
@@ -445,10 +476,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }, [answerMode]);
 
   useEffect(() => {
-    if (authed) {
+    if (authSatisfied) {
       setError((prev) => (prev && prev.toLowerCase().includes("sign in") ? null : prev));
     }
-  }, [authed]);
+  }, [authSatisfied]);
 
   useEffect(() => {
     if (authEnabled && user?.is_admin) {
@@ -515,8 +546,53 @@ const [queryId, setQueryId] = useState<string | null>(null);
               </button>
             )
           ) : null}
-        </div>
       </div>
+    </div>
+      <section className="col-span-12 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-800">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">API status</h2>
+            <p className="text-xs text-gray-500">Using NEXT_PUBLIC_API_BASE_URL for all requests.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              void checkApiStatus();
+            }}
+            className="rounded border px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+            disabled={apiStatus.state === "checking"}
+          >
+            {apiStatus.state === "checking" ? "Checking…" : "Refresh API status"}
+          </button>
+        </div>
+        <dl className="mt-3 grid grid-cols-1 gap-3 text-xs text-gray-700 sm:grid-cols-2">
+          <div>
+            <dt className="font-semibold text-gray-600">Base URL</dt>
+            <dd className="break-words">{apiBaseUrl}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-gray-600">Connectivity</dt>
+            <dd
+              className={
+                apiStatus.state === "ok"
+                  ? "text-emerald-700"
+                  : apiStatus.state === "error"
+                    ? "text-red-600"
+                    : "text-gray-600"
+              }
+            >
+              {apiStatus.state === "ok"
+                ? apiStatus.detail
+                : apiStatus.state === "error"
+                  ? `unreachable — ${apiStatus.detail}`
+                  : "checking…"}
+            </dd>
+          </div>
+        </dl>
+        {apiStatus.state === "error" ? (
+          <p className="mt-2 text-xs text-red-600">API check failed: {apiStatus.detail}</p>
+        ) : null}
+      </section>
       {authEnabled ? (
         <div className="col-span-12 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
           <div className="flex flex-wrap items-center justify-between gap-3">

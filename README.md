@@ -18,6 +18,15 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 | Frontend (`apps/web`) | Next.js 14 (App Router) · Tailwind · React Markdown | Playground UI, SSE streaming, auth provider, diagnostics, admin tools |
 | Tooling | Poetry · pnpm · smoke scripts | `tools/dev_local.sh` launches API + web + smoke checks; tests via pytest and pnpm |
 
+## Deployment Overview
+- **Backend API** → Cloud Run service `rag-playground-api` built via `Dockerfile` in the repo root and deployed with `infra/gcp/deploy_cloud_run.sh`.
+- **Frontend Web** → Cloud Run service `rag-playground-web` built with `apps/web/Dockerfile` and deployed using `infra/gcp/deploy_cloud_run_web.sh`.
+- **CI/CD (recommended)** → Cloud Build triggers use `infra/gcp/cloudbuild.api.yaml` and `infra/gcp/cloudbuild.web.yaml` to build, push, and deploy automatically on each merge to `main`. See `DEPLOYMENT.md` for trigger + substitution setup.
+- The web helper builds from `apps/web/` via Cloud Build; by default the bundle targets the deployed Cloud Run API URL but local `.env.local` can override `NEXT_PUBLIC_API_BASE_URL` / `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`.
+- Secrets (OpenAI keys, Google OAuth, session secrets) live in Cloud Run environment variables or Google Secret Manager—never in git.
+- When auth is enabled, add the Cloud Run web URL to Google OAuth “Authorized JavaScript origins”.
+- Set `CORS_ALLOWED_ORIGINS` on the API to include the Cloud Run web URL (and any local dev origins you need).
+
 ## Prerequisites
 - Python 3.11 with [Poetry](https://python-poetry.org/)
 - Node.js 18+ with [pnpm](https://pnpm.io/) v8+
@@ -92,9 +101,10 @@ pnpm test:sanity
 - The repo does not contain any actual OpenAI or Google credentials. Bring your own keys when cloning or forking.
 
 ## Deployment & Further Reading
-- See [DEPLOYMENT.md](DEPLOYMENT.md) for Render/Vercel setup, environment configuration, and troubleshooting tips.
+- See [DEPLOYMENT.md](DEPLOYMENT.md) for Cloud Run automation scripts, environment configuration, and troubleshooting tips.
 - Helpful tooling:
   - `tools/dev_local.sh` – launches API + web + smoke.
+  - `tools/dev_web_docker.sh` – build/run the web Docker image locally with a configurable API base URL.
   - `./tools/smoke.sh https://your-api-url` – remote smoke once deployed.
   - QA regression harness: `poetry run pytest tests/test_eval_qa.py -q` inside `apps/api`.
 

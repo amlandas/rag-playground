@@ -15,7 +15,7 @@ import { fetchSession, loginWithGoogle, logoutSession } from '../lib/rag-api';
 import type { AuthSession, AuthUser } from '../lib/types';
 
 const DEFAULT_AUTH_ENABLED =
-  (process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED ?? '').toLowerCase() === 'true';
+  (process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED ?? "false").toLowerCase() === "true";
 const DEFAULT_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
 
 type AuthContextValue = {

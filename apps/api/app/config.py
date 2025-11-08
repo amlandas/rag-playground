@@ -29,7 +29,15 @@ class Settings(BaseSettings):
     SIMILARITY_FLOOR: float = 0.18
     MAX_RETRIEVED: int = 8
     MIN_RETRIEVAL_SIMILARITY: float | None = None  # legacy override hook
-    ALLOW_ORIGINS: str | None = None
+    ALLOW_ORIGINS: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "ALLOW_ORIGINS",
+            "CORS_ALLOWED_ORIGINS",
+            "CORS__ALLOWED_ORIGINS",
+            "RAG_ALLOW_ORIGINS",
+        ),
+    )
 
     # Retrieval knobs
     RETRIEVER_STRATEGY: str = "hybrid"  # 'dense' or 'hybrid'

@@ -1,0 +1,41 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--tag'
+      - '${_IMAGE}'
+      - '--file'
+      - 'apps/web/Dockerfile'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_BASE_URL=${_API_BASE_URL}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=${_NEXT_PUBLIC_GOOGLE_AUTH_ENABLED}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_GOOGLE_CLIENT_ID=${_NEXT_PUBLIC_GOOGLE_CLIENT_ID}'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_IMAGE}']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+          set -euo pipefail
+          CMD_ARGS=(--image "${_IMAGE}" --region "${_REGION}" --platform managed --allow-unauthenticated --port "${_PORT}" --memory "${_MEMORY}" --cpu "${_CPU}")
+          if [[ -n "${_WEB_ENV_VARS}" ]]; then
+            CMD_ARGS+=("--set-env-vars=${_WEB_ENV_VARS}")
+          fi
+          gcloud run deploy "${_SERVICE_NAME_WEB}" "${CMD_ARGS[@]}"
+
+images:
+  - '${_IMAGE}'
+
+substitutions:
+  _SERVICE_NAME_WEB: rag-playground-web
+  _REGION: us-west1
+  _PORT: "3000"
+  _MEMORY: 512Mi
+  _CPU: "1"
+  _WEB_ENV_VARS: ""

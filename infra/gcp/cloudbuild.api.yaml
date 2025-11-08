@@ -1,0 +1,36 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--tag'
+      - '${_IMAGE}'
+      - '--file'
+      - 'Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_IMAGE}']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+          set -euo pipefail
+          CMD_ARGS=(--image "${_IMAGE}" --region "${_REGION}" --platform managed --allow-unauthenticated)
+          if [[ -n "${_ENV_VARS}" ]]; then
+            CMD_ARGS+=("--set-env-vars=${_ENV_VARS}")
+          fi
+          if [[ -n "${_SECRET_VARS}" ]]; then
+            CMD_ARGS+=("--set-secrets=${_SECRET_VARS}")
+          fi
+          gcloud run deploy "${_SERVICE_NAME}" "${CMD_ARGS[@]}"
+
+images:
+  - '${_IMAGE}'
+
+substitutions:
+  _SERVICE_NAME: rag-playground-api
+  _REGION: us-west1
+  _ENV_VARS: ""
+  _SECRET_VARS: ""

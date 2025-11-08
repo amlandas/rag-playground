@@ -1,4 +1,4 @@
-import { API_BASE } from "./api";
+import { getApiBaseUrl } from "./api";
 import { postSSE } from "./sse";
 import type {
   AdminMetricsSummary,
@@ -40,7 +40,7 @@ export function buildQueryPayload(session_id: string, body: QueryPayload) {
 }
 
 export async function uploadFiles(files: File[]): Promise<UploadResponse> {
-  const url = `${API_BASE}/api/upload`;
+  const url = `${getApiBaseUrl()}/api/upload`;
   const form = new FormData();
   for (const file of files) {
     form.append("files", file, file.name);
@@ -56,7 +56,7 @@ export async function buildIndex(
   sessionId: string,
   opts: { chunk_size?: number; overlap?: number; embed_model?: string } = {}
 ): Promise<IndexResponse> {
-  const url = `${API_BASE}/api/index`;
+  const url = `${getApiBaseUrl()}/api/index`;
   const body = {
     session_id: sessionId,
     chunk_size: opts.chunk_size ?? 800,
@@ -88,14 +88,14 @@ export async function querySSE(
   body: QueryPayload,
   handlers: SSEHandlers
 ) {
-  const url = `${API_BASE}/api/query`;
+  const url = `${getApiBaseUrl()}/api/query`;
   const payload = buildQueryPayload(session_id, body);
 
   await postSSE(url, payload, handlers);
 }
 
 export async function compareRetrieval(body: CompareRequest): Promise<CompareResult> {
-  const res = await fetch(`${API_BASE}/api/compare`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/compare`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -121,12 +121,12 @@ export async function answerFromSnippetsSSE(
     model: opts.model ?? "gpt-4o-mini",
     temperature: opts.temperature ?? 0.2,
   };
-  const url = `${API_BASE}/api/answer_from_snippets`;
+  const url = `${getApiBaseUrl()}/api/answer_from_snippets`;
   await postSSE(url, payload, handlers);
 }
 
 export async function sendFeedback(query_id: string, rating: -1 | 1, reason?: string) {
-  const res = await fetch(`${API_BASE}/api/feedback`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query_id, rating, reason }),
@@ -139,7 +139,7 @@ export async function sendFeedback(query_id: string, rating: -1 | 1, reason?: st
 }
 
 export async function fetchMetrics(limit = 25): Promise<MetricsResponse> {
-  const res = await fetch(`${API_BASE}/api/metrics?limit=${limit}`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/metrics?limit=${limit}`, {
     cache: "no-store",
     credentials: "include",
   });
@@ -150,7 +150,7 @@ export async function fetchMetrics(limit = 25): Promise<MetricsResponse> {
 }
 
 export async function fetchMetricsSummary(): Promise<AdminMetricsSummary> {
-  const res = await fetch(`${API_BASE}/api/metrics/summary`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/metrics/summary`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -162,7 +162,7 @@ export async function fetchMetricsSummary(): Promise<AdminMetricsSummary> {
 }
 
 export async function fetchHealthDetails(): Promise<HealthDetails> {
-  const res = await fetch(`${API_BASE}/api/health/details`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/health/details`, {
     method: "GET",
     cache: "no-store",
   });
@@ -173,7 +173,7 @@ export async function fetchHealthDetails(): Promise<HealthDetails> {
 }
 
 export async function fetchSession(): Promise<AuthSession> {
-  const res = await fetch(`${API_BASE}/api/auth/me`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/me`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -185,7 +185,7 @@ export async function fetchSession(): Promise<AuthSession> {
 }
 
 export async function loginWithGoogle(idToken: string): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/api/auth/google`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -198,7 +198,7 @@ export async function loginWithGoogle(idToken: string): Promise<AuthUser> {
 }
 
 export async function logoutSession(): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/auth/logout`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
   });

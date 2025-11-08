@@ -1,0 +1,30 @@
+# https://cloud.google.com/sdk/docs/advanced-topics/gcloudignore
+
+# Always ignore this file and git metadata
+.gcloudignore
+.git
+.gitignore
+
+# Local development artifacts
+node_modules
+**/node_modules
+.local
+logs
+**/.next
+coverage
+
+# OS cruft
+.DS_Store
+**/.DS_Store
+
+# Environment / secret files (except documented samples)
+.env
+*.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python / virtualenv caches from the API project
+**/__pycache__
+**/.pytest_cache
+apps/api/.venv
