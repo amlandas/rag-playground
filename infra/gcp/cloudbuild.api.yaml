@@ -34,3 +34,6 @@ substitutions:
   _REGION: us-west1
   _ENV_VARS: ""
   _SECRET_VARS: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY

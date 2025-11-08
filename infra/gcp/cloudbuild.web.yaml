@@ -39,3 +39,6 @@ substitutions:
   _MEMORY: 512Mi
   _CPU: "1"
   _WEB_ENV_VARS: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
