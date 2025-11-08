@@ -9,11 +9,14 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from urllib.parse import urlparse
+
 from fastapi import HTTPException, Request, Response
 
 from ..config import settings
 
 SESSION_COOKIE_NAME = "rag_session"
+LOCAL_HOST_SUFFIXES = (".localhost", ".local", ".test")
 
 
 @dataclass
@@ -70,29 +73,63 @@ def decode_session_token(token: str) -> Optional[Dict[str, Any]]:
     return data
 
 
+def _parsed_origins() -> list[str]:
+    raw = settings.ALLOW_ORIGINS or ""
+    origins: list[str] = []
+    for chunk in raw.split(","):
+        value = chunk.strip()
+        if not value:
+            continue
+        origins.append(value)
+    return origins
+
+
+def _origin_is_local(origin: str) -> bool:
+    parsed = urlparse(origin if "://" in origin else f"https://{origin}")
+    host = (parsed.hostname or "").lower()
+    if host in {"localhost", "127.0.0.1"}:
+        return True
+    return host.endswith(LOCAL_HOST_SUFFIXES)
+
+
 def cookie_secure_flag() -> bool:
-    origins = settings.ALLOW_ORIGINS or ""
+    origins = _parsed_origins()
     if not origins:
         return False
-    lowered = origins.lower()
-    if "localhost" in lowered or "127.0.0.1" in lowered:
-        return False
-    return True
+    for origin in origins:
+        parsed = urlparse(origin if "://" in origin else f"https://{origin}")
+        if parsed.scheme != "https":
+            continue
+        if _origin_is_local(origin):
+            continue
+        return True
+    return False
+
+
+def cookie_samesite_policy() -> str:
+    return "none" if cookie_secure_flag() else "lax"
 
 
 def set_session_cookie(response: Response, token: str) -> None:
+    secure = cookie_secure_flag()
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,
         max_age=settings.SESSION_TTL_MINUTES * 60,
         httponly=True,
-        secure=cookie_secure_flag(),
-        samesite="lax",
+        secure=secure,
+        samesite=cookie_samesite_policy(),
+        path="/",
     )
 
 
 def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        path="/",
+        secure=cookie_secure_flag(),
+        samesite=cookie_samesite_policy(),
+    )
 
 
 def _user_from_token(token: str) -> Optional[SessionUser]:

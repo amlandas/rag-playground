@@ -181,3 +181,5 @@ cd apps/web && pnpm test:sanity                       # apps/web
    ./infra/gcp/deploy_cloud_run_web.sh
    ```
 4. **Validate.** Open the Cloud Run web URL, ensure “Sign in with Google” appears, and verify upload/index/query after authenticating. Health badge/API status should show reachable, and the API `/api/auth/me` endpoint should return `{ "authenticated": true, ... }` when cookies are present.
+
+> Because the API and web Cloud Run services run on different origins, keep the production web origin listed in `CORS_ALLOWED_ORIGINS` even if you add local dev values. When at least one non-local HTTPS origin is present, the backend automatically issues `SameSite=None; Secure` cookies so GIS sessions flow across both services.

@@ -25,7 +25,7 @@ type AuthContextValue = {
   error: string | null;
   signIn: () => void;
   signOut: () => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { silent?: boolean }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -54,14 +54,17 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
     setUser({ email: session.email, is_admin: session.is_admin });
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
     if (!authEnabled) {
       setUser(null);
       setError(null);
       return;
     }
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
       const session = await fetchSession();
       applySession(session);
@@ -70,7 +73,9 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
       setError(err?.message ? String(err.message) : 'Failed to refresh session');
       setUser(null);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [applySession, authEnabled]);
 
@@ -83,8 +88,8 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
       try {
         setLoading(true);
         setError(null);
-        const next = await loginWithGoogle(credential);
-        setUser(next);
+        await loginWithGoogle(credential);
+        await refresh({ silent: true });
       } catch (err) {
         console.error('[auth] google login error', err);
         setError('Google sign-in failed. Please try again.');
@@ -92,7 +97,7 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
         setLoading(false);
       }
     },
-    [],
+    [refresh],
   );
 
   const initializeGoogle = useCallback(() => {
@@ -103,6 +108,7 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
     if (!google?.accounts?.id) {
       return;
     }
+    console.info('[auth] initializing Google Identity Services');
     google.accounts.id.initialize({
       client_id: resolvedClientId,
       callback: ({ credential }: { credential: string }) => {
@@ -115,6 +121,7 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
 
   const handleScriptLoad = useCallback(() => {
     setScriptReady(true);
+    console.info('[auth] GIS script loaded');
     initializeGoogle();
   }, [initializeGoogle]);
 
@@ -145,7 +152,12 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
       setError('Google Sign-In is still loading. Please wait a moment.');
       return;
     }
-    google.accounts.id.prompt();
+    console.info('[auth] prompting Google accounts');
+    google.accounts.id.prompt(undefined, (notification: any) => {
+      if (typeof notification?.getDismissedReason === 'function') {
+        console.warn('[auth] GIS dismissed', notification.getDismissedReason());
+      }
+    });
   }, [authEnabled]);
 
   const signOut = useCallback(async () => {

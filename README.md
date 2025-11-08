@@ -27,6 +27,13 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 - When auth is enabled, add the Cloud Run web URL to Google OAuth “Authorized JavaScript origins”.
 - Set `CORS_ALLOWED_ORIGINS` on the API to include the Cloud Run web URL (and any local dev origins you need).
 
+### Auth in Cloud Run
+- The web and API services live on different Cloud Run origins, so Google Identity cookies must work cross-site. The backend automatically sets `SameSite=None; Secure` when at least one HTTPS, non-local origin is present in `CORS_ALLOWED_ORIGINS`.
+- Required env vars:
+  - API: `GOOGLE_AUTH_ENABLED`, `GOOGLE_CLIENT_ID`, `ADMIN_GOOGLE_EMAIL`, `SESSION_SECRET`, `CORS_ALLOWED_ORIGINS` (include both the web origin(s) and any local dev origins separated by commas).
+  - Web: `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_API_BASE_URL`.
+- GIS must load from the web origin. Ensure the OAuth client’s “Authorized JavaScript origins” list contains the Cloud Run web URL(s) and any developer origins.
+
 ## Prerequisites
 - Python 3.11 with [Poetry](https://python-poetry.org/)
 - Node.js 18+ with [pnpm](https://pnpm.io/) v8+
