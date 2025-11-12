@@ -18,10 +18,22 @@ steps:
       - |
           set -euo pipefail
           CMD_ARGS=(--image "${_IMAGE}" --region "${_REGION}" --platform managed --allow-unauthenticated)
-          if [[ -n "${_ENV_VARS}" ]]; then
-            CMD_ARGS+=("--set-env-vars=${_ENV_VARS}")
+          if [[ -n "${_EMBEDDINGS_PROVIDER:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=EMBEDDINGS_PROVIDER=${_EMBEDDINGS_PROVIDER}")
           fi
-          if [[ -n "${_SECRET_VARS}" ]]; then
+          if [[ -n "${_GOOGLE_AUTH_ENABLED:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=GOOGLE_AUTH_ENABLED=${_GOOGLE_AUTH_ENABLED}")
+          fi
+          if [[ -n "${_GRAPH_ENABLED:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=GRAPH_ENABLED=${_GRAPH_ENABLED}")
+          fi
+          if [[ -n "${_MAX_GRAPH_HOPS:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=MAX_GRAPH_HOPS=${_MAX_GRAPH_HOPS}")
+          fi
+          if [[ -n "${_CORS_ALLOWED_ORIGINS:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=CORS_ALLOWED_ORIGINS=${_CORS_ALLOWED_ORIGINS}")
+          fi
+          if [[ -n "${_SECRET_VARS:-}" ]]; then
             CMD_ARGS+=("--set-secrets=${_SECRET_VARS}")
           fi
           gcloud run deploy "${_SERVICE_NAME}" "${CMD_ARGS[@]}"
@@ -32,7 +44,11 @@ images:
 substitutions:
   _SERVICE_NAME: rag-playground-api
   _REGION: us-west1
-  _ENV_VARS: ""
+  _EMBEDDINGS_PROVIDER: ""
+  _GOOGLE_AUTH_ENABLED: ""
+  _GRAPH_ENABLED: ""
+  _MAX_GRAPH_HOPS: ""
+  _CORS_ALLOWED_ORIGINS: ""
   _SECRET_VARS: ""
 
 options:

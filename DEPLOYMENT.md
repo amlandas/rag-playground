@@ -45,7 +45,11 @@ Create a trigger targeting branch `main` with:
 | `_IMAGE` | `us-west1-docker.pkg.dev/rag-playground-authn/rag-playground/rag-playground-api:$SHORT_SHA` | Unique image tag per build. |
 | `_REGION` | `us-west1` | Optional override. |
 | `_SERVICE_NAME` | `rag-playground-api` | Cloud Run service name. |
-| `_ENV_VARS` | `EMBEDDINGS_PROVIDER=openai,GOOGLE_AUTH_ENABLED=true,CORS_ALLOWED_ORIGINS=https://rag-playground-web-908840126213.us-west1.run.app` | Non-secret env vars (comma-separated, no spaces). |
+| `_EMBEDDINGS_PROVIDER` | `openai` | Backend embeddings provider. |
+| `_GOOGLE_AUTH_ENABLED` | `true` | Toggle Google auth. |
+| `_GRAPH_ENABLED` | `false` | Enables advanced graph mode (default false). |
+| `_MAX_GRAPH_HOPS` | `2` | Maximum graph traversal hops. |
+| `_CORS_ALLOWED_ORIGINS` | `https://rag-playground-web-908840126213.us-west1.run.app,http://localhost:3000` | Comma-separated origins (no brackets). |
 | `_SECRET_VARS` | `OPENAI_API_KEY=openai-api-key:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_ID=google-client-id:latest,ADMIN_GOOGLE_EMAIL=admin-email:latest` | Each entry uses the `VAR=secret-name:version` format for `gcloud run --set-secrets`. Versions can be `latest` or a number. |
 
 The pipeline:
