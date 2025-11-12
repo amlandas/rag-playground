@@ -8,6 +8,7 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 - Answer composer that supports document-only (grounded) and doc + world context modes with sentence-level citations.
 - Streaming SSE responses rendered as Markdown with confidence badges and citation panels.
 - Configurable rerankers (cross-encoder or OpenAI LLM) controlled via environment variables.
+- **(Experimental)** Advanced graph retrieval mode that blends lightweight graph traversal with hybrid retrievers for multi-hop questions (flagged off by default).
 - Optional Google Sign-In auth (Google Identity Services) with session cookies and admin role support.
 - Admin observability dashboard exposing metrics, health summaries, and auth diagnostics.
 
@@ -33,6 +34,11 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
   - API: `GOOGLE_AUTH_ENABLED`, `GOOGLE_CLIENT_ID`, `ADMIN_GOOGLE_EMAIL`, `SESSION_SECRET`, `CORS_ALLOWED_ORIGINS` (include both the web origin(s) and any local dev origins separated by commas).
   - Web: `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_API_BASE_URL`.
 - GIS must load from the web origin. Ensure the OAuth client’s “Authorized JavaScript origins” list contains the Cloud Run web URL(s) and any developer origins.
+
+### Advanced Graph Mode (backend preview)
+- Flags (API): `GRAPH_ENABLED`, `GRAPH_BACKEND` (defaults to `memory`), `MAX_GRAPH_HOPS`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`. They are off by default so production stays on the classic RAG paths.
+- Endpoint: `POST /api/query/advanced` accepts `{ "session_id": "...", "query": "...", "max_hops": 2 }` and returns planner steps, graph diagnostics, and CE reranked retrieval metadata. Future milestones wire this into the UI and add synthesis/verification.
+- Graph data lives alongside the existing per-session index, so no additional infrastructure is required. Re-indexing a session rebuilds the graph idempotently.
 
 ## Prerequisites
 - Python 3.11 with [Poetry](https://python-poetry.org/)

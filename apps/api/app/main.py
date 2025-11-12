@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .middleware import cleanup_session_middleware
-from .routers import answer, auth, compare, debug, feedback, health, ingest, metrics, query
+from .routers import answer, auth, compare, debug, feedback, health, ingest, metrics, query, query_advanced
 
 app = FastAPI(title="RAG Playground API", version="0.1.0")
 
@@ -25,6 +25,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router)
 app.include_router(ingest.router, prefix="/api")
 app.include_router(query.router, prefix="/api")
+app.include_router(query_advanced.router, prefix="/api")
 app.include_router(compare.router, prefix="/api")
 app.include_router(answer.router, prefix="/api")
 app.include_router(debug.router)

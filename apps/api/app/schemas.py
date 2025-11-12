@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -71,3 +71,37 @@ class AnswerFromSnippetsRequest(BaseModel):
     snippets: List[Snippet]
     model: str = "gpt-4o-mini"
     temperature: float = 0.2
+
+
+class AdvancedRetrievedMeta(BaseModel):
+    rank: int
+    chunk_index: int
+    doc_id: str
+    start: int
+    end: int
+    text: str
+    dense_score: float | None = None
+    lexical_score: float | None = None
+    fused_score: float | None = None
+    rerank_score: float | None = None
+
+
+class AdvancedSubQuery(BaseModel):
+    query: str
+    retrieved_meta: List[AdvancedRetrievedMeta]
+    graph_paths: List[Dict[str, Any]]
+    ce_rerank_scores: List[float]
+    metrics: Dict[str, float | int]
+
+
+class AdvancedQueryRequest(BaseModel):
+    session_id: str
+    query: str
+    max_hops: Optional[int] = None
+
+
+class AdvancedQueryResponse(BaseModel):
+    session_id: str
+    query: str
+    planner: Dict[str, Any]
+    subqueries: List[AdvancedSubQuery]

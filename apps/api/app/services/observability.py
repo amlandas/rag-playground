@@ -26,6 +26,13 @@ _metrics_state = {
     },
     "last_query_ts": None,
     "last_error_ts": None,
+    "advanced_graph": {
+        "total_queries": 0,
+        "last_hops_used": 0,
+        "last_graph_candidates": 0,
+        "last_hybrid_candidates": 0,
+        "last_ce_latency_ms": None,
+    },
 }
 
 
@@ -45,6 +52,13 @@ def reset_metrics() -> None:
         _metrics_state["queries_by_confidence"][level] = 0
     _metrics_state["last_query_ts"] = None
     _metrics_state["last_error_ts"] = None
+    _metrics_state["advanced_graph"] = {
+        "total_queries": 0,
+        "last_hops_used": 0,
+        "last_graph_candidates": 0,
+        "last_hybrid_candidates": 0,
+        "last_ce_latency_ms": None,
+    }
 
 
 def record_session_created() -> None:
@@ -68,6 +82,15 @@ def record_query_error() -> None:
     _metrics_state["last_error_ts"] = time.time()
 
 
+def record_advanced_query(*, hops_used: int, graph_candidates: int, hybrid_candidates: int, ce_latency_ms: float) -> None:
+    stats = _metrics_state["advanced_graph"]
+    stats["total_queries"] += 1
+    stats["last_hops_used"] = hops_used
+    stats["last_graph_candidates"] = graph_candidates
+    stats["last_hybrid_candidates"] = hybrid_candidates
+    stats["last_ce_latency_ms"] = ce_latency_ms
+
+
 def get_metrics_summary() -> dict:
     # Copy to avoid external mutation
     summary = {
@@ -81,6 +104,6 @@ def get_metrics_summary() -> dict:
         "rerank_strategy_current": effective_strategy(),
         "rerank_strategy_configured": settings.RERANK_STRATEGY,
         "answer_mode_default": settings.ANSWER_MODE_DEFAULT,
+        "advanced_graph": dict(_metrics_state["advanced_graph"]),
     }
     return summary
-

@@ -1,10 +1,13 @@
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from ..config import settings
 from .observability import record_session_created
+
+if TYPE_CHECKING:
+    from . import graph as graph_module
 
 _SESSIONS: Dict[str, Dict[str, Any]] = {}
 _SESSION_INDEXES: Dict[str, "SessionIndex"] = {}
@@ -19,6 +22,7 @@ class SessionIndex:
     bm25: Any = None
     bm25_tokens: list[list[str]] | None = None
     embed_model: str | None = None
+    graph: "graph_module.GraphStore | None" = None
 
 
 def set_session_index(sid: str, index: SessionIndex) -> None:

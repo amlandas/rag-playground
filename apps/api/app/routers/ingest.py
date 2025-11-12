@@ -11,6 +11,7 @@ from ..schemas import IndexRequest, IndexResponse, UploadResponse
 from ..services.chunk import chunk_text
 from ..services.embed import embed_texts
 from ..services.extract import extract_text_from_pdf_bytes, extract_text_from_txt_bytes
+from ..services.graph import build_graph_store
 from ..services.index import build_faiss_index
 from ..services.retrieve import build_bm25
 from ..services.session import SessionIndex, ensure_session, new_session, set_session_index
@@ -96,6 +97,9 @@ async def build_index(
     bm25_index, bm25_tokens = build_bm25(all_chunks)
     idx_id = str(uuid.uuid4())
     sess["index"] = {"faiss": faiss_index, "chunk_map": chunk_map, "embed_model": req.embed_model}
+    graph_store = None
+    if settings.GRAPH_ENABLED:
+        graph_store = build_graph_store(sess["docs"], chunk_map)
     set_session_index(
         req.session_id,
         SessionIndex(
@@ -106,6 +110,7 @@ async def build_index(
             bm25=bm25_index,
             bm25_tokens=bm25_tokens,
             embed_model=req.embed_model,
+            graph=graph_store,
         ),
     )
     record_index_built()

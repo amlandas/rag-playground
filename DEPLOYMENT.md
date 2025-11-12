@@ -103,6 +103,10 @@ Steps:
    export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
    export ADMIN_GOOGLE_EMAIL="your-email@gmail.com"
    export CORS_ALLOWED_ORIGINS="https://your-web-service.a.run.app"
+   export GRAPH_ENABLED="false"
+   export MAX_GRAPH_HOPS="2"
+   export LLM_RERANK_ENABLED="false"
+   export FACT_CHECK_STRICT="false"
    ```
    Set `GOOGLE_AUTH_ENABLED=false` and omit the Google-specific vars if you do not need auth.
 

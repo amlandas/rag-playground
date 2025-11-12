@@ -48,6 +48,23 @@ class Settings(BaseSettings):
     MMR_LAMBDA: float = 0.7
     ANSWER_TOP_K: int = 8
     FALLBACK_WIDEN_K: int = 30
+    GRAPH_ENABLED: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("GRAPH_ENABLED", "RAG_GRAPH_ENABLED"),
+    )
+    GRAPH_BACKEND: str = Field(
+        default="memory",
+        validation_alias=AliasChoices("GRAPH_BACKEND", "RAG_GRAPH_BACKEND"),
+    )
+    MAX_GRAPH_HOPS: int = 2
+    LLM_RERANK_ENABLED: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("LLM_RERANK_ENABLED", "RAG_LLM_RERANK_ENABLED"),
+    )
+    FACT_CHECK_STRICT: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FACT_CHECK_STRICT", "RAG_FACT_CHECK_STRICT"),
+    )
 
     # Reranking
     RERANK_STRATEGY: str = Field(
@@ -141,6 +158,7 @@ class Settings(BaseSettings):
             object.__setattr__(self, "SIMILARITY_FLOOR", self.MIN_RETRIEVAL_SIMILARITY)
         object.__setattr__(self, "RETRIEVER_STRATEGY", (self.RETRIEVER_STRATEGY or "hybrid").strip().lower())
         object.__setattr__(self, "RERANK_STRATEGY", (self.RERANK_STRATEGY or "none").strip().lower())
+        object.__setattr__(self, "GRAPH_BACKEND", (self.GRAPH_BACKEND or "memory").strip().lower())
         if self.EMBEDDINGS_PROVIDER != "fake" and not self.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is required unless EMBEDDINGS_PROVIDER=fake")
         if not self.SESSION_SECRET:
@@ -178,4 +196,12 @@ print(
     f"google_enabled={settings.GOOGLE_AUTH_ENABLED} "
     f"client_id={'yes' if settings.GOOGLE_CLIENT_ID else 'no'} "
     f"admin_email={'set' if settings.ADMIN_GOOGLE_EMAIL else 'unset'}"
+)
+
+print(
+    "[CONFIG] graph mode: "
+    f"enabled={settings.GRAPH_ENABLED} backend={settings.GRAPH_BACKEND} "
+    f"max_hops={settings.MAX_GRAPH_HOPS} "
+    f"llm_rerank_enabled={settings.LLM_RERANK_ENABLED} "
+    f"fact_check_strict={settings.FACT_CHECK_STRICT}"
 )
