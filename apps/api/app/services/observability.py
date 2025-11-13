@@ -32,6 +32,10 @@ _metrics_state = {
         "last_graph_candidates": 0,
         "last_hybrid_candidates": 0,
         "last_ce_latency_ms": None,
+        "last_rerank_strategy": "ce",
+        "last_verification_mode": "none",
+        "last_subqueries": 0,
+        "last_coverage": None,
     },
 }
 
@@ -58,6 +62,10 @@ def reset_metrics() -> None:
         "last_graph_candidates": 0,
         "last_hybrid_candidates": 0,
         "last_ce_latency_ms": None,
+        "last_rerank_strategy": "ce",
+        "last_verification_mode": "none",
+        "last_subqueries": 0,
+        "last_coverage": None,
     }
 
 
@@ -82,13 +90,27 @@ def record_query_error() -> None:
     _metrics_state["last_error_ts"] = time.time()
 
 
-def record_advanced_query(*, hops_used: int, graph_candidates: int, hybrid_candidates: int, ce_latency_ms: float) -> None:
+def record_advanced_query(
+    *,
+    hops_used: int,
+    graph_candidates: int,
+    hybrid_candidates: int,
+    ce_latency_ms: float,
+    rerank_strategy: str,
+    verification_mode: str,
+    subqueries: int,
+    coverage: float | None,
+) -> None:
     stats = _metrics_state["advanced_graph"]
     stats["total_queries"] += 1
     stats["last_hops_used"] = hops_used
     stats["last_graph_candidates"] = graph_candidates
     stats["last_hybrid_candidates"] = hybrid_candidates
     stats["last_ce_latency_ms"] = ce_latency_ms
+    stats["last_rerank_strategy"] = rerank_strategy
+    stats["last_verification_mode"] = verification_mode
+    stats["last_subqueries"] = subqueries
+    stats["last_coverage"] = coverage
 
 
 def get_metrics_summary() -> dict:

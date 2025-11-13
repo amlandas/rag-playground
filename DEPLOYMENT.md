@@ -49,6 +49,12 @@ Create a trigger targeting branch `main` with:
 | `_GOOGLE_AUTH_ENABLED` | `true` | Toggle Google auth. |
 | `_GRAPH_ENABLED` | `false` | Enables advanced graph mode (default false). |
 | `_MAX_GRAPH_HOPS` | `2` | Maximum graph traversal hops. |
+| `_LLM_RERANK_ENABLED` | `false` | Enable LLM-based rerank for advanced mode. |
+| `_FACT_CHECK_STRICT` | `false` | Force RAG-V verification on each advanced query. |
+| `_FACT_CHECK_LLM_ENABLED` | `false` | Allow LLM fact-check verification mode. |
+| `_ADVANCED_MAX_SUBQUERIES` | `3` | Planner cap on sub-queries. |
+| `_ADVANCED_DEFAULT_K` | `6` | Default top-k passages for advanced mode. |
+| `_ADVANCED_DEFAULT_TEMPERATURE` | `0.2` | Default generation temperature for advanced mode. |
 | `_CORS_ALLOWED_ORIGINS` | `https://rag-playground-web-908840126213.us-west1.run.app,http://localhost:3000` | Comma-separated origins (no brackets). |
 | `_SECRET_VARS` | `OPENAI_API_KEY=openai-api-key:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_ID=google-client-id:latest,ADMIN_GOOGLE_EMAIL=admin-email:latest` | Each entry uses the `VAR=secret-name:version` format for `gcloud run --set-secrets`. Versions can be `latest` or a number. |
 
@@ -69,7 +75,10 @@ The pipeline:
 | `_API_BASE_URL` | `https://rag-playground-api-908840126213.us-west1.run.app` | Baked into the Next.js build. |
 | `_NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | `true` | Controls client auth UX. |
 | `_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `908840126213-xxxxxxxxxxxxxxxx.apps.googleusercontent.com` | Only required when auth on. |
-| `_WEB_ENV_VARS` | `NEXT_PUBLIC_SOME_FLAG=value` (optional) | Comma-separated runtime env vars, usually left blank because build args cover API/auth config. |
+| `_NEXT_PUBLIC_GRAPH_RAG_ENABLED` | `false` | Toggle Graph RAG UI. |
+| `_NEXT_PUBLIC_LLM_RERANK_ENABLED` | `false` | Enable LLM rerank option in UI. |
+| `_NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED` | `false` | Enable LLM verification option in UI. |
+| `_WEB_ENV_VARS` | `NEXT_PUBLIC_SOME_FLAG=value` (optional) | Additional runtime env vars. |
 | `_PORT` / `_MEMORY` / `_CPU` | Defaults `3000`, `512Mi`, `1` | Override if needed. |
 
 Steps:

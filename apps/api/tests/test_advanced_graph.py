@@ -34,6 +34,7 @@ def test_advanced_query_disabled(monkeypatch):
     monkeypatch.setattr(settings, "GRAPH_ENABLED", False)
     resp = client.post("/api/query/advanced", json={"session_id": "x", "query": "test"})
     assert resp.status_code == 400
+    assert "disabled" in resp.json()["detail"].lower()
 
 
 def test_advanced_query_flow(monkeypatch):
@@ -44,13 +45,40 @@ def test_advanced_query_flow(monkeypatch):
 
     resp = client.post(
         "/api/query/advanced",
-        json={"session_id": session_id, "query": "What is the PTO policy referencing remote requirements?"},
+        json={
+            "session_id": session_id,
+            "query": "What is the PTO policy referencing remote requirements?",
+            "verification_mode": "ragv",
+            "k": 3,
+        },
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["session_id"] == session_id
+    assert data["answer"]
+    assert data["verification"]
+    assert data["verification"]["mode"] == "ragv"
     assert data["subqueries"]
     first = data["subqueries"][0]
     assert "retrieved_meta" in first
     assert "graph_paths" in first
     assert first["metrics"]["graph_candidates"] >= 0
+
+
+def test_advanced_query_llm_verification_flag(monkeypatch):
+    _disable_auth(monkeypatch)
+    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
+    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 1)
+    monkeypatch.setattr(settings, "FACT_CHECK_LLM_ENABLED", False)
+    session_id = _upload_and_index(monkeypatch)
+
+    resp = client.post(
+        "/api/query/advanced",
+        json={
+            "session_id": session_id,
+            "query": "Does the remote policy mention security?",
+            "verification_mode": "llm",
+        },
+    )
+    assert resp.status_code == 400
+    assert "llm" in resp.json()["detail"].lower()

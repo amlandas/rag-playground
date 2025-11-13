@@ -2,6 +2,7 @@ import { getApiBaseUrl } from "./api";
 import { postSSE } from "./sse";
 import type {
   AdminMetricsSummary,
+  AdvancedQueryResponse,
   AnswerMode,
   AuthSession,
   AuthUser,
@@ -205,4 +206,28 @@ export async function logoutSession(): Promise<void> {
   if (!res.ok) {
     throw new Error(await res.text());
   }
+}
+
+export type AdvancedQueryPayload = {
+  session_id: string;
+  query: string;
+  k: number;
+  max_hops: number;
+  temperature: number;
+  rerank: "ce" | "llm";
+  verification_mode: "none" | "ragv" | "llm";
+  max_subqueries?: number;
+};
+
+export async function queryAdvancedGraph(body: AdvancedQueryPayload): Promise<AdvancedQueryResponse> {
+  const res = await fetch(`${getApiBaseUrl()}/api/query/advanced`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return (await res.json()) as AdvancedQueryResponse;
 }

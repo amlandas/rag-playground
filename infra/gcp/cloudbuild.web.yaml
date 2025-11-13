@@ -12,6 +12,12 @@ steps:
       - 'NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=${_NEXT_PUBLIC_GOOGLE_AUTH_ENABLED}'
       - '--build-arg'
       - 'NEXT_PUBLIC_GOOGLE_CLIENT_ID=${_NEXT_PUBLIC_GOOGLE_CLIENT_ID}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_GRAPH_RAG_ENABLED=${_NEXT_PUBLIC_GRAPH_RAG_ENABLED}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_LLM_RERANK_ENABLED=${_NEXT_PUBLIC_LLM_RERANK_ENABLED}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED=${_NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED}'
       - '.'
 
   - name: 'gcr.io/cloud-builders/docker'
@@ -39,6 +45,9 @@ substitutions:
   _MEMORY: 512Mi
   _CPU: "1"
   _WEB_ENV_VARS: ""
+  _NEXT_PUBLIC_GRAPH_RAG_ENABLED: "false"
+  _NEXT_PUBLIC_LLM_RERANK_ENABLED: "false"
+  _NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED: "false"
 
 options:
   logging: CLOUD_LOGGING_ONLY

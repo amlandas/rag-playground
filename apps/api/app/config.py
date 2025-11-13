@@ -65,6 +65,13 @@ class Settings(BaseSettings):
         default=False,
         validation_alias=AliasChoices("FACT_CHECK_STRICT", "RAG_FACT_CHECK_STRICT"),
     )
+    FACT_CHECK_LLM_ENABLED: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FACT_CHECK_LLM_ENABLED", "RAG_FACT_CHECK_LLM_ENABLED"),
+    )
+    ADVANCED_MAX_SUBQUERIES: int = 3
+    ADVANCED_DEFAULT_K: int = 6
+    ADVANCED_DEFAULT_TEMPERATURE: float = 0.2
 
     # Reranking
     RERANK_STRATEGY: str = Field(
@@ -203,5 +210,6 @@ print(
     f"enabled={settings.GRAPH_ENABLED} backend={settings.GRAPH_BACKEND} "
     f"max_hops={settings.MAX_GRAPH_HOPS} "
     f"llm_rerank_enabled={settings.LLM_RERANK_ENABLED} "
-    f"fact_check_strict={settings.FACT_CHECK_STRICT}"
+    f"fact_check_strict={settings.FACT_CHECK_STRICT} "
+    f"fact_check_llm_enabled={settings.FACT_CHECK_LLM_ENABLED}"
 )

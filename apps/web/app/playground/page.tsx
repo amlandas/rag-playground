@@ -16,11 +16,14 @@ import {
   compareRetrieval,
   fetchHealthDetails,
   fetchMetricsSummary,
+  queryAdvancedGraph,
   querySSE,
   uploadFiles,
+  type AdvancedQueryPayload,
 } from "../../lib/rag-api";
 import type {
   AdminMetricsSummary,
+  AdvancedQueryResponse,
   AnswerMode,
   CompareProfile,
   ConfidenceLevel,
@@ -91,6 +94,19 @@ function friendlyError(err: unknown): string {
   return message || "Something went wrong.";
 }
 
+function LoadingBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600">
+      <span className="inline-flex h-2 w-2 animate-ping rounded-full bg-blue-500" />
+      {label}
+    </span>
+  );
+}
+
+const GRAPH_MODE_ENABLED = (process.env.NEXT_PUBLIC_GRAPH_RAG_ENABLED ?? "false").toLowerCase() === "true";
+const LLM_RERANK_ALLOWED = (process.env.NEXT_PUBLIC_LLM_RERANK_ENABLED ?? "false").toLowerCase() === "true";
+const FACT_CHECK_LLM_ALLOWED = (process.env.NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED ?? "false").toLowerCase() === "true";
+
 export default function Playground() {
   const {
     authEnabled,
@@ -125,7 +141,9 @@ export default function Playground() {
   const [busy, setBusy] = useState<"idle" | "uploading" | "indexing" | "querying" | "comparing">(
     "idle",
   );
-  const [mode, setMode] = useState<"simple" | "advanced">("simple");
+  const [mode, setMode] = useState<"simple" | "advanced" | "graph">(
+    GRAPH_MODE_ENABLED ? "graph" : "simple",
+  );
 
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
@@ -158,6 +176,35 @@ const [answerB, setAnswerB] = useState("");
 const [answerAComplete, setAnswerAComplete] = useState(false);
 const [answerBComplete, setAnswerBComplete] = useState(false);
 const [queryId, setQueryId] = useState<string | null>(null);
+  const [graphSettings, setGraphSettings] = useState({
+    k: 6,
+    maxHops: 2,
+    temperature: 0.2,
+    rerank: "ce" as "ce" | "llm",
+    verificationMode: "ragv" as "none" | "ragv" | "llm",
+  });
+  const [graphResult, setGraphResult] = useState<AdvancedQueryResponse | null>(null);
+
+  useEffect(() => {
+    if (!GRAPH_MODE_ENABLED && mode === "graph") {
+      setMode("simple");
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "graph") {
+      setGraphResult(null);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (!LLM_RERANK_ALLOWED && graphSettings.rerank === "llm") {
+      setGraphSettings((prev) => ({ ...prev, rerank: "ce" }));
+    }
+    if (!FACT_CHECK_LLM_ALLOWED && graphSettings.verificationMode === "llm") {
+      setGraphSettings((prev) => ({ ...prev, verificationMode: "ragv" }));
+    }
+  }, [graphSettings.rerank, graphSettings.verificationMode]);
 
   const checkApiStatus = useCallback(async () => {
     setApiStatus({ state: "checking", detail: "" });
@@ -372,6 +419,75 @@ const [queryId, setQueryId] = useState<string | null>(null);
     );
   }
 
+  const runGraphQuery = useCallback(async () => {
+    if (!sessionId) return;
+    if (authRequired) {
+      setError("Sign in with Google to run queries.");
+      return;
+    }
+    if (authGateActive) return;
+    if (!indexed) {
+      setError("Build an index before running Graph RAG queries.");
+      return;
+    }
+    setBusy("querying");
+    setAnswer("");
+    setAnswerComplete(false);
+    setSources([]);
+    setGraphResult(null);
+    setError(null);
+    const sanitizedRerank = graphSettings.rerank === "llm" && !LLM_RERANK_ALLOWED ? "ce" : graphSettings.rerank;
+    const sanitizedVerification =
+      graphSettings.verificationMode === "llm" && !FACT_CHECK_LLM_ALLOWED
+        ? "ragv"
+        : graphSettings.verificationMode;
+    try {
+      const payload: AdvancedQueryPayload = {
+        session_id: sessionId,
+        query,
+        k: graphSettings.k,
+        max_hops: graphSettings.maxHops,
+        temperature: graphSettings.temperature,
+        rerank: sanitizedRerank,
+        verification_mode: sanitizedVerification,
+      };
+      const response = await queryAdvancedGraph(payload);
+      setAnswer(response.answer);
+      setAnswerComplete(true);
+      const normalizedSources: RetrievedChunk[] = response.subqueries.flatMap((sub) =>
+        sub.retrieved_meta.map((meta) => ({
+          rank: meta.rank,
+          doc_id: meta.doc_id,
+          start: meta.start,
+          end: meta.end,
+          text: meta.text,
+          similarity: meta.dense_score,
+          lexical_score: meta.lexical_score,
+          fused_score: meta.fused_score,
+          rerank_score: meta.rerank_score ?? undefined,
+        })),
+      );
+      setSources(normalizedSources);
+      setGraphResult(response);
+    } catch (err: any) {
+      setError(friendlyError(err));
+      setGraphResult(null);
+    } finally {
+      setBusy("idle");
+    }
+  }, [
+    sessionId,
+    authRequired,
+    authGateActive,
+    indexed,
+    graphSettings.k,
+    graphSettings.maxHops,
+    graphSettings.temperature,
+    graphSettings.rerank,
+    graphSettings.verificationMode,
+    query,
+  ]);
+
   async function doCompare() {
     if (!sessionId) return;
     if (authRequired) {
@@ -500,11 +616,12 @@ const [queryId, setQueryId] = useState<string | null>(null);
             <span className="text-sm text-gray-600">Mode:</span>
             <select
               value={mode}
-              onChange={(event) => setMode(event.target.value as "simple" | "advanced")}
+              onChange={(event) => setMode(event.target.value as "simple" | "advanced" | "graph")}
               className="rounded border px-2 py-1 text-sm"
             >
               <option value="simple">Simple</option>
               <option value="advanced">Advanced (A/B)</option>
+              {GRAPH_MODE_ENABLED ? <option value="graph">Graph RAG (multi-stage)</option> : null}
             </select>
             <span className="text-xs rounded-full border px-2 py-0.5 text-gray-600">
               Ephemeral • auto-cleans after 30m idle
@@ -591,6 +708,85 @@ const [queryId, setQueryId] = useState<string | null>(null);
         </dl>
         {apiStatus.state === "error" ? (
           <p className="mt-2 text-xs text-red-600">API check failed: {apiStatus.detail}</p>
+        ) : null}
+
+        {mode === "graph" ? (
+          <div className="mt-3 grid gap-3 rounded-lg border border-dashed border-gray-300 p-3 text-xs text-gray-700 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="font-semibold text-gray-600">Top-k passages</label>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                value={graphSettings.k}
+                onChange={(event) =>
+                  setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
+                }
+                className="w-full rounded border px-2 py-1"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-gray-600">Max graph hops</label>
+              <input
+                type="number"
+                min={1}
+                max={4}
+                value={graphSettings.maxHops}
+                onChange={(event) =>
+                  setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
+                }
+                className="w-full rounded border px-2 py-1"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-gray-600">Temperature</label>
+              <input
+                type="number"
+                step={0.1}
+                min={0}
+                max={1}
+                value={graphSettings.temperature}
+                onChange={(event) =>
+                  setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
+                }
+                className="w-full rounded border px-2 py-1"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-gray-600">Rerank strategy</label>
+              <select
+                value={graphSettings.rerank}
+                onChange={(event) =>
+                  setGraphSettings((prev) => ({ ...prev, rerank: event.target.value as "ce" | "llm" }))
+                }
+                className="w-full rounded border px-2 py-1"
+              >
+                <option value="ce">Cross-encoder</option>
+                <option value="llm" disabled={!LLM_RERANK_ALLOWED}>
+                  LLM rerank {LLM_RERANK_ALLOWED ? "" : "(disabled)"}
+                </option>
+              </select>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <label className="font-semibold text-gray-600">Verification</label>
+              <select
+                value={graphSettings.verificationMode}
+                onChange={(event) =>
+                  setGraphSettings((prev) => ({
+                    ...prev,
+                    verificationMode: event.target.value as "none" | "ragv" | "llm",
+                  }))
+                }
+                className="w-full rounded border px-2 py-1"
+              >
+                <option value="none">Skip verification</option>
+                <option value="ragv">RAG-V cross-check</option>
+                <option value="llm" disabled={!FACT_CHECK_LLM_ALLOWED}>
+                  Fact-check LLM {FACT_CHECK_LLM_ALLOWED ? "" : "(disabled)"}
+                </option>
+              </select>
+            </div>
+          </div>
         ) : null}
       </section>
       {authEnabled ? (
@@ -772,7 +968,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
               disabled={!canBuild}
               className="rounded-lg bg-black px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:opacity-50"
             >
-              {busy === "indexing" ? "Indexing…" : "Build index"}
+              {busy === "indexing" ? <LoadingBadge label="Indexing" /> : "Build index"}
             </button>
           </div>
           <div className="mt-2 text-xs text-gray-500">
@@ -793,7 +989,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
       </aside>
 
       <section
-        className={`rounded-xl border p-3 ${mode === "advanced" ? "col-span-9" : "col-span-6"}`}
+        className={`rounded-xl border p-3 ${mode === "simple" ? "col-span-6" : "col-span-9"}`}
       >
         <div className="mb-2 text-sm font-semibold">Ask a question</div>
         <div className="flex gap-2">
@@ -803,48 +999,88 @@ const [queryId, setQueryId] = useState<string | null>(null);
             placeholder="e.g., What is our PTO policy?"
             className="w-full rounded-lg border px-3 py-2 outline-none focus:ring"
           />
-          {mode === "simple" ? (
+          {mode === "simple" && (
             <button
               onClick={doQuerySimple}
               className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
               disabled={!canQuery}
             >
-              {busy === "querying" ? "Running…" : "Run"}
+              {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
             </button>
-          ) : (
+          )}
+          {mode === "advanced" && (
             <button
               onClick={doCompare}
               className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
               disabled={!canCompare}
             >
-              {busy === "comparing" ? "Comparing…" : "Run A/B"}
+              {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
+            </button>
+          )}
+          {mode === "graph" && (
+            <button
+              onClick={() => {
+                void runGraphQuery();
+              }}
+              className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
+              disabled={
+                !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
+              }
+            >
+              {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
             </button>
           )}
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-700">Answer mode:</span>
-            <div className="flex overflow-hidden rounded-lg border border-gray-300">
-              <button
-                type="button"
-                className={modeButtonClass("grounded")}
-                onClick={() => setAnswerMode("grounded")}
-              >
-                Document-only
-              </button>
-              <button
-                type="button"
-                className={modeButtonClass("blended")}
-                onClick={() => setAnswerMode("blended")}
-              >
-                Doc + world context
-              </button>
+        {mode !== "graph" ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-700">Answer mode:</span>
+              <div className="flex overflow-hidden rounded-lg border border-gray-300">
+                <button
+                  type="button"
+                  className={modeButtonClass("grounded")}
+                  onClick={() => setAnswerMode("grounded")}
+                >
+                  Document-only
+                </button>
+                <button
+                  type="button"
+                  className={modeButtonClass("blended")}
+                  onClick={() => setAnswerMode("blended")}
+                >
+                  Doc + world context
+                </button>
+              </div>
+            </div>
+            <div className="text-[11px] text-gray-500">
+              World notes appear only in Doc + world context.
             </div>
           </div>
-          <div className="text-[11px] text-gray-500">
-            World notes appear only in Doc + world context.
+        ) : null}
+
+        {mode === "graph" ? (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Graph RAG answer</div>
+              {graphResult?.verification ? (
+                <span className="rounded-full border px-2 py-1 text-xs font-semibold text-purple-700">
+                  Verification: {graphResult.verification.verdict}
+                </span>
+              ) : null}
+            </div>
+            <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[200px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
+              {graphResult ? renderMarkdown(graphResult.answer, "Graph RAG answer will appear here.") : "Graph RAG answer will appear here."}
+            </div>
+            {graphResult?.verification ? (
+              <div className="rounded-lg border px-3 py-2 text-xs text-gray-600">
+                <div className="font-semibold text-gray-700">Verification</div>
+                <div>Mode: {graphResult.verification.mode}</div>
+                <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
+                <div className="text-gray-700">{graphResult.verification.notes}</div>
+              </div>
+            ) : null}
           </div>
-        </div>
+        ) : null}
 
         {mode === "simple" ? (
           <div className="mt-4">
@@ -883,7 +1119,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
               <FeedbackBar queryId={queryId} />
             </div>
           </div>
-        ) : (
+        ) : null}
+
+        {mode === "advanced" ? (
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <div className="mb-1 text-sm font-semibold">Answer — Profile A</div>
@@ -965,7 +1203,26 @@ const [queryId, setQueryId] = useState<string | null>(null);
               </div>
             </div>
           </div>
-        )}
+        ) : null}
+
+        {mode === "graph" && graphResult ? (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="font-semibold text-gray-800">Diagnostics</div>
+            </div>
+            <div className="space-y-3">
+              {graphResult.subqueries.map((sub) => (
+                <div key={sub.query} className="rounded border border-white bg-white/70 p-2 shadow-sm">
+                  <div className="text-sm font-semibold text-gray-800">{sub.query}</div>
+                  <div className="text-gray-600">{sub.answer}</div>
+                  <div className="mt-1 text-[11px] text-gray-500">
+                    Hops: {sub.metrics.hops_used ?? "-"} · Graph hits: {sub.metrics.graph_candidates ?? "-"} · Hybrid hits: {sub.metrics.hybrid_candidates ?? "-"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">

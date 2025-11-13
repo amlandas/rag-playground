@@ -45,9 +45,9 @@ def compute_confidence(
     return "low"
 
 
-def _apply_rerank(query: str, hits: list[RetrievalHit], texts: list[str]) -> Dict[str, Any]:
-    configured_strategy = settings.RERANK_STRATEGY
-    rerank_strategy = effective_strategy()
+def _apply_rerank(query: str, hits: list[RetrievalHit], texts: list[str], *, strategy_override: str | None = None) -> Dict[str, Any]:
+    configured_strategy = strategy_override or settings.RERANK_STRATEGY
+    rerank_strategy = (strategy_override or effective_strategy())
     rerank_scores: list[float] = []
 
     if rerank_strategy == "none" or not hits:

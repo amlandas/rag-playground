@@ -30,6 +30,24 @@ steps:
           if [[ -n "${_MAX_GRAPH_HOPS:-}" ]]; then
             CMD_ARGS+=("--set-env-vars=MAX_GRAPH_HOPS=${_MAX_GRAPH_HOPS}")
           fi
+          if [[ -n "${_LLM_RERANK_ENABLED:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=LLM_RERANK_ENABLED=${_LLM_RERANK_ENABLED}")
+          fi
+          if [[ -n "${_FACT_CHECK_STRICT:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=FACT_CHECK_STRICT=${_FACT_CHECK_STRICT}")
+          fi
+          if [[ -n "${_FACT_CHECK_LLM_ENABLED:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=FACT_CHECK_LLM_ENABLED=${_FACT_CHECK_LLM_ENABLED}")
+          fi
+          if [[ -n "${_ADVANCED_MAX_SUBQUERIES:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=ADVANCED_MAX_SUBQUERIES=${_ADVANCED_MAX_SUBQUERIES}")
+          fi
+          if [[ -n "${_ADVANCED_DEFAULT_K:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=ADVANCED_DEFAULT_K=${_ADVANCED_DEFAULT_K}")
+          fi
+          if [[ -n "${_ADVANCED_DEFAULT_TEMPERATURE:-}" ]]; then
+            CMD_ARGS+=("--set-env-vars=ADVANCED_DEFAULT_TEMPERATURE=${_ADVANCED_DEFAULT_TEMPERATURE}")
+          fi
           if [[ -n "${_CORS_ALLOWED_ORIGINS:-}" ]]; then
             CMD_ARGS+=("--set-env-vars=CORS_ALLOWED_ORIGINS=${_CORS_ALLOWED_ORIGINS}")
           fi
@@ -48,6 +66,12 @@ substitutions:
   _GOOGLE_AUTH_ENABLED: ""
   _GRAPH_ENABLED: ""
   _MAX_GRAPH_HOPS: ""
+  _LLM_RERANK_ENABLED: ""
+  _FACT_CHECK_STRICT: ""
+  _FACT_CHECK_LLM_ENABLED: ""
+  _ADVANCED_MAX_SUBQUERIES: ""
+  _ADVANCED_DEFAULT_K: ""
+  _ADVANCED_DEFAULT_TEMPERATURE: ""
   _CORS_ALLOWED_ORIGINS: ""
   _SECRET_VARS: ""
 

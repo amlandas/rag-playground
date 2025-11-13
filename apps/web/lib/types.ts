@@ -111,3 +111,43 @@ export type HealthDetails = {
   answer_mode_default: string;
   version?: string;
 };
+
+export type AdvancedRetrievedMeta = {
+  rank: number;
+  chunk_index: number;
+  doc_id: string;
+  start: number;
+  end: number;
+  text: string;
+  dense_score?: number;
+  lexical_score?: number;
+  fused_score?: number;
+  rerank_score?: number;
+};
+
+export type AdvancedSubQueryResult = {
+  query: string;
+  retrieved_meta: AdvancedRetrievedMeta[];
+  graph_paths: Array<Record<string, unknown>>;
+  rerank_scores: number[];
+  metrics: Record<string, number>;
+  answer: string;
+  citations: Array<Record<string, unknown>>;
+};
+
+export type AdvancedVerificationSummary = {
+  mode: string;
+  verdict: string;
+  coverage: number;
+  notes: string;
+};
+
+export type AdvancedQueryResponse = {
+  session_id: string;
+  query: string;
+  planner: Record<string, unknown>;
+  subqueries: AdvancedSubQueryResult[];
+  answer: string;
+  citations: Array<Record<string, unknown>>;
+  verification?: AdvancedVerificationSummary | null;
+};

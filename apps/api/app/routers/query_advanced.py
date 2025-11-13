@@ -23,7 +23,7 @@ async def query_advanced(
     if not req.query:
         raise HTTPException(status_code=400, detail="query is required.")
     try:
-        result = run_advanced_query(req.session_id, req.query, max_hops=req.max_hops)
+        result = run_advanced_query(req)
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err)) from err
     return result

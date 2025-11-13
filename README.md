@@ -35,9 +35,11 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
   - Web: `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_API_BASE_URL`.
 - GIS must load from the web origin. Ensure the OAuth client’s “Authorized JavaScript origins” list contains the Cloud Run web URL(s) and any developer origins.
 
-### Advanced Graph Mode (backend preview)
-- Flags (API): `GRAPH_ENABLED`, `GRAPH_BACKEND` (defaults to `memory`), `MAX_GRAPH_HOPS`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`. They are off by default so production stays on the classic RAG paths.
-- Endpoint: `POST /api/query/advanced` accepts `{ "session_id": "...", "query": "...", "max_hops": 2 }` and returns planner steps, graph diagnostics, and CE reranked retrieval metadata. Future milestones wire this into the UI and add synthesis/verification.
+### Advanced Graph Mode
+- Flags (API): `GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`, `FACT_CHECK_LLM_ENABLED`, `ADVANCED_MAX_SUBQUERIES`, `ADVANCED_DEFAULT_K`, `ADVANCED_DEFAULT_TEMPERATURE`.
+- Flags (Web): `NEXT_PUBLIC_GRAPH_RAG_ENABLED`, `NEXT_PUBLIC_LLM_RERANK_ENABLED`, `NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED`.
+- Endpoint: `POST /api/query/advanced` now runs the full multi-stage Graph RAG pipeline (planner → graph traversal → hybrid retrieval → CE/LLM rerank → synthesis → optional verification) and returns `{ answer, citations, subqueries, verification }`.
+- UI: when `NEXT_PUBLIC_GRAPH_RAG_ENABLED=true`, the playground shows a “Graph RAG” mode with tunable controls (k, hops, temperature, rerank strategy, verification mode) plus diagnostics and verification summaries.
 - Graph data lives alongside the existing per-session index, so no additional infrastructure is required. Re-indexing a session rebuilds the graph idempotently.
 
 ## Prerequisites

@@ -90,14 +90,28 @@ class AdvancedSubQuery(BaseModel):
     query: str
     retrieved_meta: List[AdvancedRetrievedMeta]
     graph_paths: List[Dict[str, Any]]
-    ce_rerank_scores: List[float]
+    rerank_scores: List[float]
     metrics: Dict[str, float | int]
+    answer: str
+    citations: List[Dict[str, Any]]
 
 
 class AdvancedQueryRequest(BaseModel):
     session_id: str
     query: str
+    k: Optional[int] = None
     max_hops: Optional[int] = None
+    temperature: Optional[float] = None
+    rerank: Optional[Literal["ce", "llm"]] = None
+    verification_mode: Optional[Literal["none", "ragv", "llm"]] = None
+    max_subqueries: Optional[int] = None
+
+
+class VerificationSummary(BaseModel):
+    mode: str
+    verdict: str
+    coverage: float
+    notes: str
 
 
 class AdvancedQueryResponse(BaseModel):
@@ -105,3 +119,6 @@ class AdvancedQueryResponse(BaseModel):
     query: str
     planner: Dict[str, Any]
     subqueries: List[AdvancedSubQuery]
+    answer: str
+    citations: List[Dict[str, Any]]
+    verification: Optional[VerificationSummary] = None
