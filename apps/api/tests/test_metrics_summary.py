@@ -14,6 +14,8 @@ from app.services.observability import (
     record_query,
     record_query_error,
 )
+from app.services import runtime_config as runtime_config_service
+from app.services.runtime_config import FeatureFlags, GraphRagConfig, RuntimeConfig
 
 
 @pytest.fixture
@@ -37,6 +39,26 @@ def _mock_google_verify(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("app.routers.auth.id_token.verify_oauth2_token", fake_verify)
 
 
+def _override_runtime_config(monkeypatch: pytest.MonkeyPatch):
+    cfg = RuntimeConfig(
+        environment="test",
+        features=FeatureFlags(
+            graph_enabled=True,
+            llm_rerank_enabled=True,
+            fact_check_llm_enabled=True,
+            fact_check_strict=False,
+        ),
+        graph_rag=GraphRagConfig(
+            max_graph_hops=2,
+            advanced_max_subqueries=3,
+            advanced_default_k=6,
+            advanced_default_temperature=0.2,
+        ),
+    )
+    monkeypatch.setattr(runtime_config_service, "_test_override", cfg, raising=False)
+    monkeypatch.setattr(runtime_config_service, "_runtime_config_cache", cfg, raising=False)
+
+
 def test_metrics_summary_requires_admin(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     _configure_auth(monkeypatch)
     _mock_google_verify(monkeypatch)
@@ -56,6 +78,7 @@ def test_metrics_summary_requires_admin(monkeypatch: pytest.MonkeyPatch, client:
 def test_metrics_summary_returns_counts(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     _configure_auth(monkeypatch)
     _mock_google_verify(monkeypatch)
+    _override_runtime_config(monkeypatch)
 
     reset_metrics()
     record_session_created()
@@ -89,10 +112,15 @@ def test_metrics_summary_returns_counts(monkeypatch: pytest.MonkeyPatch, client:
     assert "llm_rerank_enabled" in payload
     assert "advanced_default_k" in payload
     assert "advanced_default_temperature" in payload
+    assert payload["max_graph_hops"] == 2
+    assert "firestore_config_enabled" in payload
+    assert "runtime_config_source" in payload
+    assert payload["config_env"]
 
 
 def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     monkeypatch.setattr(settings, "GOOGLE_AUTH_ENABLED", False)
+    _override_runtime_config(monkeypatch)
     resp = client.get("/api/health/details")
     assert resp.status_code == 200
     payload = resp.json()
@@ -109,3 +137,7 @@ def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     assert "advanced_default_k" in payload
     assert "advanced_default_temperature" in payload
     assert "advanced_max_subqueries" in payload
+    assert "max_graph_hops" in payload
+    assert "firestore_config_enabled" in payload
+    assert "runtime_config_source" in payload
+    assert "config_env" in payload

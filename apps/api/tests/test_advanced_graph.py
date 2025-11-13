@@ -8,6 +8,8 @@ from app.main import app
 from app.config import settings
 from app.services import session_auth
 from app.services import advanced as advanced_service
+from app.services import runtime_config as runtime_config_service
+from app.services.runtime_config import FeatureFlags, GraphRagConfig, RuntimeConfig
 
 
 client = TestClient(app)
@@ -30,9 +32,28 @@ def _upload_and_index(monkeypatch) -> str:
     return session_id
 
 
+def _set_runtime_config(monkeypatch, **overrides) -> RuntimeConfig:
+    features = FeatureFlags(
+        graph_enabled=overrides.get("graph_enabled", True),
+        llm_rerank_enabled=overrides.get("llm_rerank_enabled", False),
+        fact_check_llm_enabled=overrides.get("fact_check_llm_enabled", False),
+        fact_check_strict=overrides.get("fact_check_strict", False),
+    )
+    graph = GraphRagConfig(
+        max_graph_hops=overrides.get("max_graph_hops", 2),
+        advanced_max_subqueries=overrides.get("advanced_max_subqueries", 3),
+        advanced_default_k=overrides.get("advanced_default_k", 6),
+        advanced_default_temperature=overrides.get("advanced_default_temperature", 0.2),
+    )
+    cfg = RuntimeConfig(environment="test", features=features, graph_rag=graph)
+    monkeypatch.setattr(runtime_config_service, "_test_override", cfg, raising=False)
+    monkeypatch.setattr(runtime_config_service, "_runtime_config_cache", cfg, raising=False)
+    return cfg
+
+
 def test_advanced_query_disabled(monkeypatch):
     _disable_auth(monkeypatch)
-    monkeypatch.setattr(settings, "GRAPH_ENABLED", False)
+    _set_runtime_config(monkeypatch, graph_enabled=False)
     resp = client.post("/api/query/advanced", json={"session_id": "x", "query": "test"})
     assert resp.status_code == 400
     assert "disabled" in resp.json()["detail"].lower()
@@ -40,8 +61,7 @@ def test_advanced_query_disabled(monkeypatch):
 
 def test_advanced_query_flow(monkeypatch):
     _disable_auth(monkeypatch)
-    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
-    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 2)
+    _set_runtime_config(monkeypatch, graph_enabled=True, max_graph_hops=2, fact_check_strict=True)
     session_id = _upload_and_index(monkeypatch)
 
     resp = client.post(
@@ -68,9 +88,7 @@ def test_advanced_query_flow(monkeypatch):
 
 def test_advanced_query_llm_verification_flag(monkeypatch):
     _disable_auth(monkeypatch)
-    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
-    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 1)
-    monkeypatch.setattr(settings, "FACT_CHECK_LLM_ENABLED", False)
+    _set_runtime_config(monkeypatch, graph_enabled=True, max_graph_hops=1, fact_check_llm_enabled=False)
     session_id = _upload_and_index(monkeypatch)
 
     resp = client.post(
@@ -85,30 +103,73 @@ def test_advanced_query_llm_verification_flag(monkeypatch):
     assert "llm" in resp.json()["detail"].lower()
 
 
-def test_advanced_query_respects_env_override(monkeypatch):
+def test_advanced_query_env_fallback(monkeypatch):
     _disable_auth(monkeypatch)
-    monkeypatch.setattr(settings, "GRAPH_ENABLED", False)
-    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 2)
+    runtime_config_service.clear_runtime_config_override()
+    monkeypatch.setenv("FIRESTORE_CONFIG_ENABLED", "false")
     monkeypatch.setenv("GRAPH_ENABLED", "true")
+    monkeypatch.setenv("MAX_GRAPH_HOPS", "2")
+    runtime_config_service.reload_runtime_config()
     session_id = _upload_and_index(monkeypatch)
 
     resp = client.post(
         "/api/query/advanced",
-        json={
-            "session_id": session_id,
-            "query": "Does the PTO policy mention security?",
-        },
+        json={"session_id": session_id, "query": "Does the PTO policy mention security?"},
     )
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["session_id"] == session_id
-    assert data["subqueries"]
+    assert resp.json()["session_id"] == session_id
+
+    monkeypatch.delenv("GRAPH_ENABLED", raising=False)
+    monkeypatch.delenv("MAX_GRAPH_HOPS", raising=False)
+    monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
+    runtime_config_service.reload_runtime_config()
+
+
+def test_advanced_query_firestore_override(monkeypatch):
+    _disable_auth(monkeypatch)
+    runtime_config_service.clear_runtime_config_override()
+    monkeypatch.setenv("FIRESTORE_CONFIG_ENABLED", "true")
+    monkeypatch.setenv("CONFIG_ENV", "unit")
+    monkeypatch.setenv("GRAPH_ENABLED", "false")
+
+    def fake_fetch(collection, env_name):
+        assert env_name == "unit"
+        return {
+            "environment": env_name,
+            "features": {
+                "graph_enabled": True,
+                "llm_rerank_enabled": False,
+                "fact_check_llm_enabled": False,
+                "fact_check_strict": False,
+            },
+            "graph_rag": {"max_graph_hops": 2},
+        }
+
+    monkeypatch.setattr(runtime_config_service, "_fetch_firestore_document", fake_fetch)
+    runtime_config_service.reload_runtime_config()
+    session_id = _upload_and_index(monkeypatch)
+    resp = client.post(
+        "/api/query/advanced",
+        json={"session_id": session_id, "query": "Does Firestore config allow graph mode?"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["session_id"] == session_id
+
+    monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
+    monkeypatch.delenv("CONFIG_ENV", raising=False)
+    monkeypatch.delenv("GRAPH_ENABLED", raising=False)
+    runtime_config_service.reload_runtime_config()
 
 
 def test_advanced_query_llm_pipeline(monkeypatch):
     _disable_auth(monkeypatch)
-    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
-    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 1)
+    _set_runtime_config(
+        monkeypatch,
+        graph_enabled=True,
+        max_graph_hops=1,
+        llm_rerank_enabled=True,
+        fact_check_llm_enabled=True,
+    )
     session_id = _upload_and_index(monkeypatch)
 
     call_tracker = {"sub": 0, "final": 0}
@@ -149,8 +210,7 @@ def test_advanced_query_llm_pipeline(monkeypatch):
 
 def test_advanced_query_no_verification_still_llm(monkeypatch):
     _disable_auth(monkeypatch)
-    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
-    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 1)
+    _set_runtime_config(monkeypatch, graph_enabled=True, max_graph_hops=1, llm_rerank_enabled=True)
     session_id = _upload_and_index(monkeypatch)
     monkeypatch.setattr(advanced_service, "_llm_capable", lambda: True)
     monkeypatch.setattr(advanced_service, "_summarize_subquery_llm", lambda *args, **kwargs: "LLM sub-answer")

@@ -55,10 +55,12 @@ Create a trigger targeting branch `main` with:
 | `_ADVANCED_MAX_SUBQUERIES` | `3` | Planner cap on sub-queries. |
 | `_ADVANCED_DEFAULT_K` | `6` | Default top-k passages for advanced mode. |
 | `_ADVANCED_DEFAULT_TEMPERATURE` | `0.2` | Default generation temperature for advanced mode. |
+| `_FIRESTORE_CONFIG_ENABLED` | `false` | Enable Firestore-backed runtime config (`runtime_config/{CONFIG_ENV}`). |
+| `_CONFIG_ENV` | `prod` | Which Firestore document to read (also used as the env fallback label). |
 | `_CORS_ALLOWED_ORIGINS` | `https://rag-playground-web-908840126213.us-west1.run.app,http://localhost:3000` | Comma-separated origins (no brackets). |
 | `_SECRET_VARS` | `OPENAI_API_KEY=openai-api-key:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_ID=google-client-id:latest,ADMIN_GOOGLE_EMAIL=admin-email:latest` | Each entry uses the `VAR=secret-name:version` format for `gcloud run --set-secrets`. Versions can be `latest` or a number. |
 
-> **Graph RAG defaults:** The Cloud Build config now calls `gcloud run deploy` with explicit `--set-env-vars` for `GRAPH_ENABLED`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`, `FACT_CHECK_LLM_ENABLED`, `ADVANCED_MAX_SUBQUERIES`, `ADVANCED_DEFAULT_K`, and `ADVANCED_DEFAULT_TEMPERATURE`. Leaving a substitution blank falls back to the documented default (e.g., `false`/`3`/`6`/`0.2`), so every deploy keeps backend + trigger configuration in sync—no manual Cloud Run env edits required.
+> **Runtime config defaults:** Each deploy still pushes env defaults for the advanced knobs so local/dev environments continue to work without Firestore. When `FIRESTORE_CONFIG_ENABLED=true`, the API reads `runtime_config/{CONFIG_ENV}` and overrides the env values field-by-field, falling back only when a document field is missing.
 
 The pipeline:
 1. Builds the API image with the repo-root `Dockerfile`.
@@ -164,6 +166,33 @@ Steps:
 - **Google OAuth**: When auth is enabled, include the web Cloud Run URL in the OAuth client’s “Authorized JavaScript origins”.
 - **Frontend config**: Set `NEXT_PUBLIC_API_BASE_URL` (handled by the web deploy script) to the API URL so all requests target the managed backend.
 - **Secrets**: Update secrets via `gcloud run services update <service> --set-env-vars ...` or migrate sensitive values to Google Secret Manager with `--set-secrets`.
+
+## Runtime configuration via Firestore
+
+Advanced/Graph RAG tuning is stored in a Firestore collection so you can flip knobs without redeploying:
+
+1. **Create the document** – In Firestore, add `runtime_config/{CONFIG_ENV}` (for example `runtime_config/prod`) with:
+   ```json
+   {
+     "environment": "prod",
+     "features": {
+       "graph_enabled": true,
+       "llm_rerank_enabled": true,
+       "fact_check_llm_enabled": false,
+       "fact_check_strict": false
+     },
+     "graph_rag": {
+       "max_graph_hops": 2,
+       "advanced_max_subqueries": 3,
+       "advanced_default_k": 6,
+       "advanced_default_temperature": 0.2
+     }
+   }
+   ```
+2. **Enable Firestore overrides** – Set `FIRESTORE_CONFIG_ENABLED=true` (Cloud Build substitution `_FIRESTORE_CONFIG_ENABLED`) and choose the environment via `_CONFIG_ENV`. The collection defaults to `runtime_config`, but you can override it with `RUNTIME_CONFIG_COLLECTION`.
+3. **Fallback behavior** – If the document is missing or a field is absent, the API logs a warning and falls back to the corresponding env var (`GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, etc.), so local dev keeps working without Firestore.
+4. **What stays in env** – Infrastructure, provider selection, secrets, and base auth toggles remain env/Secret Manager driven (`EMBEDDINGS_PROVIDER`, OpenAI key, Google OAuth, `SESSION_SECRET`, `GOOGLE_AUTH_ENABLED`, etc.). Firestore only owns the Graph RAG feature flags and tuning knobs listed above.
+5. **Diagnostics** – `/api/health/details` and `/api/metrics/summary` report the effective values plus `firestore_config_enabled`, `runtime_config_source`, and `config_env` so you can verify which source is in effect.
 
 ## Cost & Scaling Notes
 

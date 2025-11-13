@@ -12,6 +12,7 @@ from .embed import embed_texts
 from .generate import run_chat_completion
 from .graph import GraphStore, match_entities, plan_subqueries, traverse_graph
 from .observability import record_advanced_query
+from .runtime_config import get_runtime_config
 from .pipeline import _apply_rerank
 from .retrieve import RetrievalHit, hybrid_retrieve, _l2_normalize
 from .session import ensure_session, get_session_index
@@ -307,7 +308,11 @@ def _compute_verification(
 
 
 def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
-    if not settings.advanced_graph_enabled:
+    runtime_cfg = get_runtime_config()
+    features = runtime_cfg.features
+    graph_cfg = runtime_cfg.graph_rag
+
+    if not features.graph_enabled:
         raise ValueError("Advanced graph mode is disabled in this environment.")
     session_id = req.session_id
     query = req.query.strip()
@@ -321,19 +326,22 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
     rerank_mode = (req.rerank or "ce").lower()
     if rerank_mode not in {"ce", "llm"}:
         rerank_mode = "ce"
-    if rerank_mode == "llm" and not settings.LLM_RERANK_ENABLED:
+    llm_rerank_allowed = features.llm_rerank_enabled and settings.advanced_llm_enabled
+    if rerank_mode == "llm" and not llm_rerank_allowed:
         raise ValueError("LLM rerank is disabled.")
 
-    verification_mode = (req.verification_mode or ("ragv" if settings.FACT_CHECK_STRICT else "none")).lower()
+    default_verification = "ragv" if features.fact_check_strict else "none"
+    verification_mode = (req.verification_mode or default_verification).lower()
     if verification_mode not in {"none", "ragv", "llm"}:
         verification_mode = "none"
-    if verification_mode == "llm" and not settings.FACT_CHECK_LLM_ENABLED:
+    llm_verification_allowed = features.fact_check_llm_enabled and settings.advanced_llm_enabled
+    if verification_mode == "llm" and not llm_verification_allowed:
         raise ValueError("LLM fact-checking is disabled.")
 
-    max_hops = req.max_hops or settings.MAX_GRAPH_HOPS
-    answer_top_k = max(1, min(req.k or settings.ADVANCED_DEFAULT_K, settings.MAX_RETRIEVED))
-    temperature = req.temperature or settings.ADVANCED_DEFAULT_TEMPERATURE
-    max_subqueries = req.max_subqueries or settings.ADVANCED_MAX_SUBQUERIES
+    max_hops = req.max_hops or graph_cfg.max_graph_hops
+    answer_top_k = max(1, min(req.k or graph_cfg.advanced_default_k, settings.MAX_RETRIEVED))
+    temperature = req.temperature or graph_cfg.advanced_default_temperature
+    max_subqueries = req.max_subqueries or graph_cfg.advanced_max_subqueries
     model = (req.model or settings.LLM_RERANK_MODEL or "gpt-4o-mini").strip()
     if not model:
         model = "gpt-4o-mini"
@@ -426,7 +434,7 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
             "session_id": session_id,
             "query_len": len(query),
             "subqueries": len(response_subqueries),
-            "graph_enabled": settings.advanced_graph_enabled,
+            "graph_enabled": features.graph_enabled,
             "llm_summary": settings.advanced_llm_enabled,
             "rerank_mode": rerank_mode,
             "verification_mode": verification_mode,

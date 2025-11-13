@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..config import settings
 from ..schemas import AdvancedQueryRequest, AdvancedQueryResponse
 from ..services.advanced import run_advanced_query
+from ..services.runtime_config import get_runtime_config
 from ..services.session_auth import SessionUser, get_session_user, maybe_require_auth
 
 router = APIRouter()
@@ -16,7 +16,8 @@ async def query_advanced(
     user: SessionUser | None = Depends(get_session_user),
 ):
     maybe_require_auth(user)
-    if not settings.advanced_graph_enabled:
+    runtime_cfg = get_runtime_config()
+    if not runtime_cfg.features.graph_enabled:
         raise HTTPException(status_code=400, detail="Advanced graph mode is disabled.")
     if not req.session_id:
         raise HTTPException(status_code=400, detail="session_id is required.")

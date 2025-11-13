@@ -17,6 +17,7 @@ from ..services.retrieve import build_bm25
 from ..services.session import SessionIndex, ensure_session, new_session, set_session_index
 from ..services.observability import record_index_built
 from ..services.session_auth import SessionUser, get_session_user, maybe_require_auth
+from ..services.runtime_config import get_runtime_config
 
 router = APIRouter()
 
@@ -98,7 +99,7 @@ async def build_index(
     idx_id = str(uuid.uuid4())
     sess["index"] = {"faiss": faiss_index, "chunk_map": chunk_map, "embed_model": req.embed_model}
     graph_store = None
-    if settings.advanced_graph_enabled:
+    if get_runtime_config().features.graph_enabled:
         graph_store = build_graph_store(sess["docs"], chunk_map)
     set_session_index(
         req.session_id,
