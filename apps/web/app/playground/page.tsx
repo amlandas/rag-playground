@@ -186,6 +186,13 @@ const [queryId, setQueryId] = useState<string | null>(null);
   const [graphResult, setGraphResult] = useState<AdvancedQueryResponse | null>(null);
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.info("[graph-rag] enabled:", GRAPH_MODE_ENABLED);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!GRAPH_MODE_ENABLED && mode === "graph") {
       setMode("simple");
     }
