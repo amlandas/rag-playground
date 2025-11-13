@@ -105,6 +105,7 @@ class AdvancedQueryRequest(BaseModel):
     rerank: Optional[Literal["ce", "llm"]] = None
     verification_mode: Optional[Literal["none", "ragv", "llm"]] = None
     max_subqueries: Optional[int] = None
+    model: Optional[str] = None
 
 
 class VerificationSummary(BaseModel):

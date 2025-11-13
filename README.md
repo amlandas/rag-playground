@@ -36,10 +36,11 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 - GIS must load from the web origin. Ensure the OAuth client’s “Authorized JavaScript origins” list contains the Cloud Run web URL(s) and any developer origins.
 
 ### Advanced Graph Mode
-- Flags (API): `GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`, `FACT_CHECK_LLM_ENABLED`, `ADVANCED_MAX_SUBQUERIES`, `ADVANCED_DEFAULT_K`, `ADVANCED_DEFAULT_TEMPERATURE`.
-- Flags (Web): `NEXT_PUBLIC_GRAPH_RAG_ENABLED`, `NEXT_PUBLIC_LLM_RERANK_ENABLED`, `NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED`.
-- Endpoint: `POST /api/query/advanced` now runs the full multi-stage Graph RAG pipeline (planner → graph traversal → hybrid retrieval → CE/LLM rerank → synthesis → optional verification) and returns `{ answer, citations, subqueries, verification }`.
-- UI: when `NEXT_PUBLIC_GRAPH_RAG_ENABLED=true`, the playground shows a “Graph RAG” mode with tunable controls (k, hops, temperature, rerank strategy, verification mode) plus diagnostics and verification summaries.
+- **Backend flags** (required for production Graph RAG): `GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`, `FACT_CHECK_LLM_ENABLED`, `ADVANCED_MAX_SUBQUERIES`, `ADVANCED_DEFAULT_K`, `ADVANCED_DEFAULT_TEMPERATURE`. Cloud Build now sets each flag explicitly via `infra/gcp/cloudbuild.api.yaml`, so Cloud Run always reflects the trigger values.
+- **Frontend flags**: `NEXT_PUBLIC_GRAPH_RAG_ENABLED`, `NEXT_PUBLIC_LLM_RERANK_ENABLED`, `NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED`.
+- **Pipeline**: `POST /api/query/advanced` executes planner → graph traversal → hybrid retrieval → CE/LLM rerank → per-sub-query LLM summarization → LLM synthesis → optional verification (RAG-V or fact-check LLM). If the OpenAI stack is unavailable (e.g., `EMBEDDINGS_PROVIDER=fake`), the pipeline gracefully falls back to deterministic summaries while still returning structured answers.
+- **Diagnostics**: `/api/health/details` and `/api/metrics/summary` now surface `graph_enabled`, `advanced_graph_enabled`, `advanced_llm_enabled`, rerank/verification flags, and the advanced defaults so you can confirm prod configuration without redeploying.
+- **UI**: when `NEXT_PUBLIC_GRAPH_RAG_ENABLED=true`, the playground shows a “Graph RAG (multi-stage)” mode with controls for k, hops, rerank (CE/LLM), verification, and live sub-query diagnostics.
 - Graph data lives alongside the existing per-session index, so no additional infrastructure is required. Re-indexing a session rebuilds the graph idempotently.
 
 ## Prerequisites

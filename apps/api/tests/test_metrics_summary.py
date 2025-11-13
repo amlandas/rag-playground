@@ -83,6 +83,12 @@ def test_metrics_summary_returns_counts(monkeypatch: pytest.MonkeyPatch, client:
     assert payload["last_error_ts"] is not None
     assert payload["rerank_strategy_current"]
     assert payload["answer_mode_default"]
+    assert "graph_enabled" in payload
+    assert "advanced_graph_enabled" in payload
+    assert "advanced_llm_enabled" in payload
+    assert "llm_rerank_enabled" in payload
+    assert "advanced_default_k" in payload
+    assert "advanced_default_temperature" in payload
 
 
 def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
@@ -96,3 +102,10 @@ def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     assert "ce_available" in payload
     assert "llm_available" in payload
     assert "answer_mode_default" in payload
+    assert "graph_enabled" in payload
+    assert "advanced_graph_enabled" in payload
+    assert "advanced_llm_enabled" in payload
+    assert "llm_rerank_enabled" in payload
+    assert "advanced_default_k" in payload
+    assert "advanced_default_temperature" in payload
+    assert "advanced_max_subqueries" in payload

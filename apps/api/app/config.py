@@ -3,6 +3,26 @@ import os
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_TRUE_FLAGS = {"1", "true", "t", "yes", "y", "on"}
+_FALSE_FLAGS = {"0", "false", "f", "no", "n", "off"}
+
+
+def _env_flag(*names: str) -> bool | None:
+    """Best-effort normalization for boolean env vars, tolerant of quotes."""
+    for name in names:
+        raw = os.getenv(name)
+        if raw is None:
+            continue
+        cleaned = str(raw).strip().strip("'\"").strip()
+        if not cleaned:
+            continue
+        lowered = cleaned.lower()
+        if lowered in _TRUE_FLAGS:
+            return True
+        if lowered in _FALSE_FLAGS:
+            return False
+    return None
+
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
@@ -180,6 +200,26 @@ class Settings(BaseSettings):
                 raise ValueError("SESSION_SECRET environment variable is required when GOOGLE_AUTH_ENABLED=true")
         return self
 
+    @property
+    def graph_enabled_effective(self) -> bool:
+        """Effective graph toggle, preferring live env vars over static config."""
+        env_override = _env_flag("GRAPH_ENABLED", "RAG_GRAPH_ENABLED")
+        if env_override is not None:
+            return env_override
+        return bool(self.GRAPH_ENABLED)
+
+    @property
+    def advanced_graph_enabled(self) -> bool:
+        """Advanced graph mode piggybacks on the general graph flag."""
+        return self.graph_enabled_effective
+
+    @property
+    def advanced_llm_enabled(self) -> bool:
+        """Advanced pipeline can invoke LLMs when real providers are configured."""
+        if not self.OPENAI_API_KEY:
+            return False
+        return self.EMBEDDINGS_PROVIDER != "fake"
+
 
 settings = Settings()
 
@@ -207,9 +247,12 @@ print(
 
 print(
     "[CONFIG] graph mode: "
-    f"enabled={settings.GRAPH_ENABLED} backend={settings.GRAPH_BACKEND} "
+    f"raw_enabled={settings.GRAPH_ENABLED} effective={settings.graph_enabled_effective} "
+    f"advanced={settings.advanced_graph_enabled} "
+    f"backend={settings.GRAPH_BACKEND} "
     f"max_hops={settings.MAX_GRAPH_HOPS} "
     f"llm_rerank_enabled={settings.LLM_RERANK_ENABLED} "
     f"fact_check_strict={settings.FACT_CHECK_STRICT} "
-    f"fact_check_llm_enabled={settings.FACT_CHECK_LLM_ENABLED}"
+    f"fact_check_llm_enabled={settings.FACT_CHECK_LLM_ENABLED} "
+    f"advanced_llm_ready={settings.advanced_llm_enabled}"
 )

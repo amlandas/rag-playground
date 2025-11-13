@@ -16,7 +16,7 @@ async def query_advanced(
     user: SessionUser | None = Depends(get_session_user),
 ):
     maybe_require_auth(user)
-    if not settings.GRAPH_ENABLED:
+    if not settings.advanced_graph_enabled:
         raise HTTPException(status_code=400, detail="Advanced graph mode is disabled.")
     if not req.session_id:
         raise HTTPException(status_code=400, detail="session_id is required.")

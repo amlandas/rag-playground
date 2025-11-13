@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
 from app.services import session_auth
+from app.services import advanced as advanced_service
 
 
 client = TestClient(app)
@@ -82,3 +83,92 @@ def test_advanced_query_llm_verification_flag(monkeypatch):
     )
     assert resp.status_code == 400
     assert "llm" in resp.json()["detail"].lower()
+
+
+def test_advanced_query_respects_env_override(monkeypatch):
+    _disable_auth(monkeypatch)
+    monkeypatch.setattr(settings, "GRAPH_ENABLED", False)
+    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 2)
+    monkeypatch.setenv("GRAPH_ENABLED", "true")
+    session_id = _upload_and_index(monkeypatch)
+
+    resp = client.post(
+        "/api/query/advanced",
+        json={
+            "session_id": session_id,
+            "query": "Does the PTO policy mention security?",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["session_id"] == session_id
+    assert data["subqueries"]
+
+
+def test_advanced_query_llm_pipeline(monkeypatch):
+    _disable_auth(monkeypatch)
+    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
+    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 1)
+    session_id = _upload_and_index(monkeypatch)
+
+    call_tracker = {"sub": 0, "final": 0}
+    monkeypatch.setattr(advanced_service, "_llm_capable", lambda: True)
+
+    def fake_sub_llm(sub_query, snippets, *, model, temperature):
+        call_tracker["sub"] += 1
+        return f"LLM summary for {sub_query}"
+
+    def fake_final_llm(question, subqueries, *, model, temperature):
+        call_tracker["final"] += 1
+        return (
+            "Final LLM answer",
+            [
+                {"id": "S1", "doc_id": "doc-id", "chunk_index": 0, "start": 0, "end": 10},
+            ],
+        )
+
+    monkeypatch.setattr(advanced_service, "_summarize_subquery_llm", fake_sub_llm)
+    monkeypatch.setattr(advanced_service, "_synthesize_answer_llm", fake_final_llm)
+
+    resp = client.post(
+        "/api/query/advanced",
+        json={
+            "session_id": session_id,
+            "query": "Summarize the PTO policy links",
+            "model": "gpt-test",
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["answer"] == "Final LLM answer"
+    assert call_tracker["final"] == 1
+    assert call_tracker["sub"] == len(payload["subqueries"])
+    assert payload["planner"]["model"] == "gpt-test"
+    assert all(sub["answer"].startswith("LLM summary") for sub in payload["subqueries"])
+
+
+def test_advanced_query_no_verification_still_llm(monkeypatch):
+    _disable_auth(monkeypatch)
+    monkeypatch.setattr(settings, "GRAPH_ENABLED", True)
+    monkeypatch.setattr(settings, "MAX_GRAPH_HOPS", 1)
+    session_id = _upload_and_index(monkeypatch)
+    monkeypatch.setattr(advanced_service, "_llm_capable", lambda: True)
+    monkeypatch.setattr(advanced_service, "_summarize_subquery_llm", lambda *args, **kwargs: "LLM sub-answer")
+    monkeypatch.setattr(
+        advanced_service,
+        "_synthesize_answer_llm",
+        lambda *args, **kwargs: ("Synthesis output", [{"id": "S1", "doc_id": "doc-id", "chunk_index": 0, "start": 0, "end": 10}]),
+    )
+
+    resp = client.post(
+        "/api/query/advanced",
+        json={
+            "session_id": session_id,
+            "query": "Show me the remote policy status",
+            "verification_mode": "none",
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["answer"] == "Synthesis output"
+    assert payload["verification"] is None

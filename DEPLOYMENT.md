@@ -58,6 +58,8 @@ Create a trigger targeting branch `main` with:
 | `_CORS_ALLOWED_ORIGINS` | `https://rag-playground-web-908840126213.us-west1.run.app,http://localhost:3000` | Comma-separated origins (no brackets). |
 | `_SECRET_VARS` | `OPENAI_API_KEY=openai-api-key:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_ID=google-client-id:latest,ADMIN_GOOGLE_EMAIL=admin-email:latest` | Each entry uses the `VAR=secret-name:version` format for `gcloud run --set-secrets`. Versions can be `latest` or a number. |
 
+> **Graph RAG defaults:** The Cloud Build config now calls `gcloud run deploy` with explicit `--set-env-vars` for `GRAPH_ENABLED`, `LLM_RERANK_ENABLED`, `FACT_CHECK_STRICT`, `FACT_CHECK_LLM_ENABLED`, `ADVANCED_MAX_SUBQUERIES`, `ADVANCED_DEFAULT_K`, and `ADVANCED_DEFAULT_TEMPERATURE`. Leaving a substitution blank falls back to the documented default (e.g., `false`/`3`/`6`/`0.2`), so every deploy keeps backend + trigger configuration in sync—no manual Cloud Run env edits required.
+
 The pipeline:
 1. Builds the API image with the repo-root `Dockerfile`.
 2. Pushes to Artifact Registry.

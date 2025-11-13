@@ -17,39 +17,35 @@ steps:
       - "-c"
       - |
           set -euo pipefail
+          set_env_var() {
+            local key="$1"
+            local value="$2"
+            CMD_ARGS+=("--set-env-vars=${key}=${value}")
+          }
+
+          set_env_with_default() {
+            local key="$1"
+            local raw="${2:-}"
+            local fallback="$3"
+            if [[ -z "${raw}" ]]; then
+              raw="$fallback"
+            fi
+            set_env_var "$key" "$raw"
+          }
+
           CMD_ARGS=(--image "${_IMAGE}" --region "${_REGION}" --platform managed --allow-unauthenticated)
-          if [[ -n "${_EMBEDDINGS_PROVIDER:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=EMBEDDINGS_PROVIDER=${_EMBEDDINGS_PROVIDER}")
-          fi
-          if [[ -n "${_GOOGLE_AUTH_ENABLED:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=GOOGLE_AUTH_ENABLED=${_GOOGLE_AUTH_ENABLED}")
-          fi
-          if [[ -n "${_GRAPH_ENABLED:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=GRAPH_ENABLED=${_GRAPH_ENABLED}")
-          fi
-          if [[ -n "${_MAX_GRAPH_HOPS:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=MAX_GRAPH_HOPS=${_MAX_GRAPH_HOPS}")
-          fi
-          if [[ -n "${_LLM_RERANK_ENABLED:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=LLM_RERANK_ENABLED=${_LLM_RERANK_ENABLED}")
-          fi
-          if [[ -n "${_FACT_CHECK_STRICT:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=FACT_CHECK_STRICT=${_FACT_CHECK_STRICT}")
-          fi
-          if [[ -n "${_FACT_CHECK_LLM_ENABLED:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=FACT_CHECK_LLM_ENABLED=${_FACT_CHECK_LLM_ENABLED}")
-          fi
-          if [[ -n "${_ADVANCED_MAX_SUBQUERIES:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=ADVANCED_MAX_SUBQUERIES=${_ADVANCED_MAX_SUBQUERIES}")
-          fi
-          if [[ -n "${_ADVANCED_DEFAULT_K:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=ADVANCED_DEFAULT_K=${_ADVANCED_DEFAULT_K}")
-          fi
-          if [[ -n "${_ADVANCED_DEFAULT_TEMPERATURE:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=ADVANCED_DEFAULT_TEMPERATURE=${_ADVANCED_DEFAULT_TEMPERATURE}")
-          fi
+          set_env_with_default "EMBEDDINGS_PROVIDER" "${_EMBEDDINGS_PROVIDER:-}" "openai"
+          set_env_with_default "GOOGLE_AUTH_ENABLED" "${_GOOGLE_AUTH_ENABLED:-}" "false"
+          set_env_with_default "GRAPH_ENABLED" "${_GRAPH_ENABLED:-}" "false"
+          set_env_with_default "MAX_GRAPH_HOPS" "${_MAX_GRAPH_HOPS:-}" "2"
+          set_env_with_default "LLM_RERANK_ENABLED" "${_LLM_RERANK_ENABLED:-}" "false"
+          set_env_with_default "FACT_CHECK_STRICT" "${_FACT_CHECK_STRICT:-}" "false"
+          set_env_with_default "FACT_CHECK_LLM_ENABLED" "${_FACT_CHECK_LLM_ENABLED:-}" "false"
+          set_env_with_default "ADVANCED_MAX_SUBQUERIES" "${_ADVANCED_MAX_SUBQUERIES:-}" "3"
+          set_env_with_default "ADVANCED_DEFAULT_K" "${_ADVANCED_DEFAULT_K:-}" "6"
+          set_env_with_default "ADVANCED_DEFAULT_TEMPERATURE" "${_ADVANCED_DEFAULT_TEMPERATURE:-}" "0.2"
           if [[ -n "${_CORS_ALLOWED_ORIGINS:-}" ]]; then
-            CMD_ARGS+=("--set-env-vars=CORS_ALLOWED_ORIGINS=${_CORS_ALLOWED_ORIGINS}")
+            set_env_var "CORS_ALLOWED_ORIGINS" "${_CORS_ALLOWED_ORIGINS}"
           fi
           if [[ -n "${_SECRET_VARS:-}" ]]; then
             CMD_ARGS+=("--set-secrets=${_SECRET_VARS}")

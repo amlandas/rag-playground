@@ -55,6 +55,29 @@ def stream_chat(
                 yield normalized
 
 
+def run_chat_completion(
+    messages: Sequence[Mapping[str, str]],
+    *,
+    model: str,
+    temperature: float,
+    max_tokens: int | None = None,
+) -> str:
+    client = get_client()
+    request_kwargs = {
+        "model": model,
+        "messages": list(messages),
+        "temperature": temperature,
+        "stream": False,
+    }
+    if max_tokens:
+        request_kwargs["max_tokens"] = max_tokens
+    response = client.chat.completions.create(**request_kwargs)
+    choice = response.choices[0]
+    message = getattr(choice, "message", None)
+    content = getattr(message, "content", "") if message else ""
+    return postprocess_chunk(content or "").strip()
+
+
 def stream_answer(
     *,
     prompt: str,

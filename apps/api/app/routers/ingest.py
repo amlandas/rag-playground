@@ -98,7 +98,7 @@ async def build_index(
     idx_id = str(uuid.uuid4())
     sess["index"] = {"faiss": faiss_index, "chunk_map": chunk_map, "embed_model": req.embed_model}
     graph_store = None
-    if settings.GRAPH_ENABLED:
+    if settings.advanced_graph_enabled:
         graph_store = build_graph_store(sess["docs"], chunk_map)
     set_session_index(
         req.session_id,

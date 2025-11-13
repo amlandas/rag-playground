@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import json
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
 from ..config import settings
 from ..schemas import AdvancedQueryRequest, AdvancedQueryResponse, AdvancedSubQuery, VerificationSummary
+from .embed import embed_texts
+from .generate import run_chat_completion
 from .graph import GraphStore, match_entities, plan_subqueries, traverse_graph
 from .observability import record_advanced_query
 from .pipeline import _apply_rerank
 from .retrieve import RetrievalHit, hybrid_retrieve, _l2_normalize
 from .session import ensure_session, get_session_index
-from .embed import embed_texts
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -99,40 +104,170 @@ def _prepare_retrieval(session_id: str, query: str, *, max_hops: int, answer_top
     graph_hits = _to_hits_from_indexes(graph_hits_indexes)
     merged_hits = _merge_hits(graph_hits, hits_hybrid, max(answer_top_k, settings.MAX_RETRIEVED))
     return merged_hits, graph_paths, diagnostics
+#
+# Summarization helpers
+#
 
 
-def _summarize_subquery(sub_query: str, retrieved_meta: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
-    if not retrieved_meta:
-        return f"No supporting evidence was found for {sub_query}.", []
-    lines: List[str] = []
+def _llm_capable() -> bool:
+    return settings.advanced_llm_enabled
+
+
+def _build_citations(retrieved_meta: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     citations: List[Dict[str, Any]] = []
     for meta in retrieved_meta[:3]:
-        snippet = meta["text"].split(".\n")[0].strip()
-        if not snippet:
-            snippet = meta["text"][:160].strip()
-        cite_id = f"S{meta['rank']}"
-        lines.append(f"{snippet} [{cite_id}]")
         citations.append(
             {
-                "id": cite_id,
+                "id": f"S{meta['rank']}",
                 "doc_id": meta["doc_id"],
                 "chunk_index": meta["chunk_index"],
                 "start": meta["start"],
                 "end": meta["end"],
             }
         )
+    return citations
+
+
+def _prepare_snippets(retrieved_meta: List[Dict[str, Any]], citations: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    snippets: List[Dict[str, str]] = []
+    for meta, cite in zip(retrieved_meta, citations):
+        snippets.append(
+            {
+                "id": cite["id"],
+                "text": meta["text"][:600],
+            }
+        )
+    return snippets
+
+
+def _summarize_subquery_fallback(sub_query: str, retrieved_meta: List[Dict[str, Any]], citations: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
+    if not retrieved_meta:
+        return f"No supporting evidence was found for {sub_query}.", []
+    lines: List[str] = []
+    for meta, cite in zip(retrieved_meta[: len(citations)], citations):
+        snippet = meta["text"].split(".\n")[0].strip()
+        if not snippet:
+            snippet = meta["text"][:160].strip()
+        lines.append(f"{snippet} [{cite['id']}]")
     return " ".join(lines), citations
 
 
-def _aggregate_answer(sub_summaries: List[Tuple[str, List[Dict[str, Any]]]]) -> Tuple[str, List[Dict[str, Any]]]:
-    if not sub_summaries:
+def _summarize_subquery_llm(
+    sub_query: str,
+    snippets: List[Dict[str, str]],
+    *,
+    model: str,
+    temperature: float,
+) -> str:
+    if not snippets:
+        return f"No supporting evidence was found for {sub_query}."
+    payload = {
+        "sub_query": sub_query,
+        "snippets": snippets,
+        "instructions": {
+            "style": "concise",
+            "citations": "Use [S#] referencing the provided snippet ids.",
+        },
+    }
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You summarize retrieved context for multi-hop retrieval. "
+                "Use only the provided snippets. Answer in 2-3 sentences, cite snippets like [S1][S2], "
+                "and never invent new snippet identifiers."
+            ),
+        },
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+    ]
+    return run_chat_completion(messages, model=model, temperature=temperature, max_tokens=220)
+
+
+def _summarize_subquery(
+    sub_query: str,
+    retrieved_meta: List[Dict[str, Any]],
+    *,
+    model: str,
+    temperature: float,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    citations = _build_citations(retrieved_meta)
+    if not citations:
+        return f"No supporting evidence was found for {sub_query}.", []
+    snippets = _prepare_snippets(retrieved_meta, citations)
+    if _llm_capable():
+        try:
+            summary = _summarize_subquery_llm(sub_query, snippets, model=model, temperature=temperature)
+            return summary, citations
+        except Exception as exc:  # pragma: no cover - defensive log
+            logger.warning("Advanced sub-query summary LLM failed; falling back. err=%s", exc)
+    return _summarize_subquery_fallback(sub_query, retrieved_meta, citations)
+
+
+def _collect_citations(subqueries: List[AdvancedSubQuery]) -> List[Dict[str, Any]]:
+    dedup: Dict[str, Dict[str, Any]] = {}
+    for sub in subqueries:
+        for cite in sub.citations:
+            dedup.setdefault(cite["id"], cite)
+    return list(dedup.values())
+
+
+def _fallback_aggregate_answer(subqueries: List[AdvancedSubQuery]) -> Tuple[str, List[Dict[str, Any]]]:
+    if not subqueries:
         return "No answer could be generated.", []
-    parts = []
-    citations: List[Dict[str, Any]] = []
-    for idx, (text, cites) in enumerate(sub_summaries, start=1):
-        parts.append(f"{idx}. {text}")
-        citations.extend(cites)
-    return "\n".join(parts), citations
+    parts: List[str] = []
+    for idx, sub in enumerate(subqueries, start=1):
+        parts.append(f"{idx}. {sub.answer}")
+    return "\n".join(parts), _collect_citations(subqueries)
+
+
+def _synthesize_answer_llm(
+    question: str,
+    subqueries: List[AdvancedSubQuery],
+    *,
+    model: str,
+    temperature: float,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    payload = {
+        "question": question,
+        "subqueries": [
+            {
+                "query": sub.query,
+                "answer": sub.answer,
+                "citations": [cite["id"] for cite in sub.citations],
+            }
+            for sub in subqueries
+        ],
+    }
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a synthesis planner for multi-hop RAG. Combine the provided sub-query answers into a single, "
+                "well-structured response. Keep citations from the input answers (e.g., [S1]) exactly as provided "
+                "and do not invent new identifiers."
+            ),
+        },
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+    ]
+    answer = run_chat_completion(messages, model=model, temperature=temperature, max_tokens=500)
+    return answer, _collect_citations(subqueries)
+
+
+def _aggregate_answer(
+    question: str,
+    subqueries: List[AdvancedSubQuery],
+    *,
+    model: str,
+    temperature: float,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    if not subqueries:
+        return "No answer could be generated.", []
+    if _llm_capable():
+        try:
+            return _synthesize_answer_llm(question, subqueries, model=model, temperature=temperature)
+        except Exception as exc:  # pragma: no cover - defensive log
+            logger.warning("Advanced synthesis LLM failed; using fallback. err=%s", exc)
+    return _fallback_aggregate_answer(subqueries)
 
 
 def _compute_verification(
@@ -172,7 +307,7 @@ def _compute_verification(
 
 
 def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
-    if not settings.GRAPH_ENABLED:
+    if not settings.advanced_graph_enabled:
         raise ValueError("Advanced graph mode is disabled in this environment.")
     session_id = req.session_id
     query = req.query.strip()
@@ -199,6 +334,10 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
     answer_top_k = max(1, min(req.k or settings.ADVANCED_DEFAULT_K, settings.MAX_RETRIEVED))
     temperature = req.temperature or settings.ADVANCED_DEFAULT_TEMPERATURE
     max_subqueries = req.max_subqueries or settings.ADVANCED_MAX_SUBQUERIES
+    model = (req.model or settings.LLM_RERANK_MODEL or "gpt-4o-mini").strip()
+    if not model:
+        model = "gpt-4o-mini"
+    summary_temperature = max(0.0, min(temperature, 0.6))
 
     subqueries = plan_subqueries(query)
     if not subqueries:
@@ -210,7 +349,6 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
         raise ValueError("Index metadata unavailable.")
 
     response_subqueries: List[AdvancedSubQuery] = []
-    sub_summaries: List[Tuple[str, List[Dict[str, Any]]]] = []
 
     for sub_query in subqueries:
         hits, graph_paths, diagnostics = _prepare_retrieval(session_id, sub_query, max_hops=max_hops, answer_top_k=answer_top_k)
@@ -244,8 +382,7 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
                 }
             )
 
-        summary, citations = _summarize_subquery(sub_query, retrieved_meta)
-        sub_summaries.append((summary, citations))
+        summary, citations = _summarize_subquery(sub_query, retrieved_meta, model=model, temperature=summary_temperature)
 
         response_subqueries.append(
             AdvancedSubQuery(
@@ -264,24 +401,55 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
             )
         )
 
-    final_answer, final_citations = _aggregate_answer(sub_summaries)
+    final_answer, final_citations = _aggregate_answer(query, response_subqueries, model=model, temperature=temperature)
     verification = _compute_verification(verification_mode, response_subqueries)
 
+    total_hops_used = max((sub.metrics.get("hops_used", 0) for sub in response_subqueries), default=0)
+    total_graph_candidates = sum(sub.metrics.get("graph_candidates", 0) for sub in response_subqueries)
+    total_hybrid_candidates = sum(sub.metrics.get("hybrid_candidates", 0) for sub in response_subqueries)
+    total_rerank_latency = sum(sub.metrics.get("rerank_latency_ms", 0.0) for sub in response_subqueries)
+
     record_advanced_query(
-        hops_used=max(sub.metrics["hops_used"] for sub in response_subqueries) if response_subqueries else 0,
-        graph_candidates=sum(sub.metrics.get("graph_candidates", 0) for sub in response_subqueries),
-        hybrid_candidates=sum(sub.metrics.get("hybrid_candidates", 0) for sub in response_subqueries),
-        ce_latency_ms=sum(sub.metrics.get("rerank_latency_ms", 0.0) for sub in response_subqueries),
+        hops_used=total_hops_used,
+        graph_candidates=total_graph_candidates,
+        hybrid_candidates=total_hybrid_candidates,
+        ce_latency_ms=total_rerank_latency,
         rerank_strategy=rerank_mode,
         verification_mode=verification_mode,
         subqueries=len(response_subqueries),
         coverage=verification.coverage if verification else None,
     )
 
+    logger.info(
+        "[ADVANCED_GRAPH_RUN] %s",
+        {
+            "session_id": session_id,
+            "query_len": len(query),
+            "subqueries": len(response_subqueries),
+            "graph_enabled": settings.advanced_graph_enabled,
+            "llm_summary": settings.advanced_llm_enabled,
+            "rerank_mode": rerank_mode,
+            "verification_mode": verification_mode,
+            "verification_verdict": getattr(verification, "verdict", None),
+            "max_hops": max_hops,
+            "hops_used": total_hops_used,
+            "graph_candidates": total_graph_candidates,
+            "hybrid_candidates": total_hybrid_candidates,
+            "rerank_latency_ms": round(total_rerank_latency, 2),
+            "answer_chars": len(final_answer),
+        },
+    )
+
     return AdvancedQueryResponse(
         session_id=session_id,
         query=query,
-        planner={"subqueries": subqueries, "temperature": temperature, "k": answer_top_k},
+        planner={
+            "subqueries": subqueries,
+            "temperature": temperature,
+            "k": answer_top_k,
+            "llm_summary_enabled": settings.advanced_llm_enabled,
+            "model": model,
+        },
         subqueries=response_subqueries,
         answer=final_answer,
         citations=final_citations,
