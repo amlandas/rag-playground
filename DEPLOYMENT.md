@@ -171,7 +171,7 @@ Steps:
 
 Advanced/Graph RAG tuning is stored in a Firestore collection so you can flip knobs without redeploying:
 
-1. **Create the document** – In Firestore, add `runtime_config/{CONFIG_ENV}` (for example `runtime_config/prod`) with:
+1. **Create the document** – In Firestore, add `runtime_config/{CONFIG_ENV}` (for example `runtime_config/prod`) with either the nested structure below (recommended) or top-level fields with the same names:
    ```json
    {
      "environment": "prod",
@@ -193,6 +193,7 @@ Advanced/Graph RAG tuning is stored in a Firestore collection so you can flip kn
 3. **Fallback behavior** – If the document is missing or a field is absent, the API logs a warning and falls back to the corresponding env var (`GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, etc.), so local dev keeps working without Firestore.
 4. **What stays in env** – Infrastructure, provider selection, secrets, and base auth toggles remain env/Secret Manager driven (`EMBEDDINGS_PROVIDER`, OpenAI key, Google OAuth, `SESSION_SECRET`, `GOOGLE_AUTH_ENABLED`, etc.). Firestore only owns the Graph RAG feature flags and tuning knobs listed above.
 5. **Diagnostics** – `/api/health/details` and `/api/metrics/summary` report the effective values plus `firestore_config_enabled`, `runtime_config_source`, and `config_env` so you can verify which source is in effect.
+6. **Backward compatibility** – If you previously stored flat fields (e.g., `graph_enabled: true` at the document root) the API automatically normalizes them, but the nested `features` / `graph_rag` layout makes intent clearer going forward.
 
 ## Cost & Scaling Notes
 

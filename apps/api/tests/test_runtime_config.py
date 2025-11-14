@@ -58,3 +58,41 @@ def test_runtime_config_firestore_override(monkeypatch):
     monkeypatch.delenv("CONFIG_ENV", raising=False)
     monkeypatch.delenv("ADVANCED_MAX_SUBQUERIES", raising=False)
     runtime_config.reload_runtime_config()
+
+
+def test_runtime_config_firestore_flat_document(monkeypatch):
+    runtime_config.clear_runtime_config_override()
+    monkeypatch.setenv("FIRESTORE_CONFIG_ENABLED", "true")
+    monkeypatch.setenv("CONFIG_ENV", "prod")
+
+    def fake_fetch(collection: str, env_name: str):
+        return {
+            "environment": env_name,
+            "graph_enabled": True,
+            "llm_rerank_enabled": True,
+            "fact_check_llm_enabled": False,
+            "fact_check_strict": False,
+            "max_graph_hops": 5,
+            "advanced_default_k": 9,
+            "advanced_max_subqueries": 6,
+            "advanced_default_temperature": 0.33,
+        }
+
+    monkeypatch.setattr(runtime_config, "_fetch_firestore_document", fake_fetch)
+    runtime_config.reload_runtime_config()
+
+    cfg = runtime_config.get_runtime_config()
+    assert cfg.features.graph_enabled is True
+    assert cfg.features.llm_rerank_enabled is True
+    assert cfg.graph_rag.max_graph_hops == 5
+    assert cfg.graph_rag.advanced_default_k == 9
+    assert cfg.graph_rag.advanced_max_subqueries == 6
+    assert abs(cfg.graph_rag.advanced_default_temperature - 0.33) < 1e-9
+
+    metadata = runtime_config.get_runtime_config_metadata()
+    assert metadata["runtime_config_source"] == "firestore"
+    assert metadata["config_env"] == "prod"
+
+    monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
+    monkeypatch.delenv("CONFIG_ENV", raising=False)
+    runtime_config.reload_runtime_config()

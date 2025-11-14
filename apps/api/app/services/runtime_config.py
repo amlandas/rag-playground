@@ -117,6 +117,24 @@ def _fetch_firestore_document(collection: str, config_env: str) -> Optional[Dict
     return doc.to_dict()
 
 
+def _normalize_firestore_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Support both nested and flat runtime config documents."""
+    normalized = dict(doc)
+    features = dict(normalized.get("features") or {})
+    graph = dict(normalized.get("graph_rag") or {})
+
+    for field in _FEATURE_FIELDS:
+        if field not in features and field in normalized:
+            features[field] = normalized[field]
+    for field in _GRAPH_FIELDS:
+        if field not in graph and field in normalized:
+            graph[field] = normalized[field]
+
+    normalized["features"] = features
+    normalized["graph_rag"] = graph
+    return normalized
+
+
 def _detect_missing_fields(doc: Dict[str, Any]) -> List[str]:
     missing: List[str] = []
     features = doc.get("features") or {}
@@ -155,13 +173,14 @@ def _load_from_firestore(
             config_env,
         )
         return None, "env"
-    missing = _detect_missing_fields(doc)
+    normalized_doc = _normalize_firestore_doc(doc)
+    missing = _detect_missing_fields(normalized_doc)
     if missing:
         logger.warning(
             "Runtime config document missing fields %s; falling back to env defaults for those values.",
             ", ".join(missing),
         )
-    merged = _deep_merge(env_config.model_dump(), doc)
+    merged = _deep_merge(env_config.model_dump(), normalized_doc)
     merged.setdefault("environment", config_env)
     try:
         config = RuntimeConfig.model_validate(merged)
@@ -238,4 +257,3 @@ def clear_runtime_config_override() -> None:
     global _test_override, _runtime_config_cache
     _test_override = None
     _runtime_config_cache = None
-
