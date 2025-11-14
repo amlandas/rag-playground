@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from fastapi import HTTPException, Request, Response
 
 from ..config import settings
+from .runtime_config import google_auth_enabled_effective
 
 SESSION_COOKIE_NAME = "rag_session"
 LOCAL_HOST_SUFFIXES = (".localhost", ".local", ".test")
@@ -144,7 +145,7 @@ def _user_from_token(token: str) -> Optional[SessionUser]:
 
 
 def get_session_user(request: Request) -> Optional[SessionUser]:
-    if not settings.GOOGLE_AUTH_ENABLED:
+    if not google_auth_enabled_effective():
         return None
     token = request.cookies.get(SESSION_COOKIE_NAME)
     if not token:
@@ -156,7 +157,7 @@ def get_session_user(request: Request) -> Optional[SessionUser]:
 
 
 def maybe_require_auth(user: Optional[SessionUser]) -> Optional[SessionUser]:
-    if not settings.GOOGLE_AUTH_ENABLED:
+    if not google_auth_enabled_effective():
         return None
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -164,7 +165,7 @@ def maybe_require_auth(user: Optional[SessionUser]) -> Optional[SessionUser]:
 
 
 def require_admin(user: Optional[SessionUser]) -> Optional[SessionUser]:
-    if not settings.GOOGLE_AUTH_ENABLED:
+    if not google_auth_enabled_effective():
         return None
     actual = maybe_require_auth(user)
     if not actual or not actual.is_admin:

@@ -6,6 +6,7 @@ from google.oauth2 import id_token
 from pydantic import BaseModel
 
 from ..config import settings
+from ..services.runtime_config import google_auth_enabled_effective
 from ..services.session_auth import clear_session_cookie, encode_session_token, get_session_user, set_session_cookie
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -17,7 +18,7 @@ class GoogleAuthRequest(BaseModel):
 
 @router.post("/google")
 def authenticate_with_google(payload: GoogleAuthRequest, response: Response):
-    if not settings.GOOGLE_AUTH_ENABLED:
+    if not google_auth_enabled_effective():
         raise HTTPException(status_code=400, detail="Google authentication is disabled")
 
     try:
@@ -51,7 +52,7 @@ def logout(response: Response):
 
 @router.get("/me")
 def me(request: Request, response: Response):
-    if not settings.GOOGLE_AUTH_ENABLED:
+    if not google_auth_enabled_effective():
         return {"authenticated": False}
     try:
         user = get_session_user(request)

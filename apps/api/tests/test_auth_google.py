@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.config import settings
+from app.services import runtime_config as runtime_config_service
+from app.services.runtime_config import FeatureFlags, GraphRagConfig, RuntimeConfig
 
 
 @pytest.fixture
@@ -14,8 +16,22 @@ def client():
     return TestClient(app)
 
 
+def _override_auth_runtime(monkeypatch: pytest.MonkeyPatch, enabled: bool) -> None:
+    features = FeatureFlags(
+        google_auth_enabled=enabled,
+        graph_enabled=True,
+        llm_rerank_enabled=False,
+        fact_check_llm_enabled=False,
+        fact_check_strict=False,
+    )
+    graph = GraphRagConfig()
+    cfg = RuntimeConfig(environment="test", features=features, graph_rag=graph)
+    monkeypatch.setattr(runtime_config_service, "_test_override", cfg, raising=False)
+    monkeypatch.setattr(runtime_config_service, "_runtime_config_cache", cfg, raising=False)
+
+
 def test_auth_disabled_rejects_login(monkeypatch: pytest.MonkeyPatch, client: TestClient):
-    monkeypatch.setattr(settings, "GOOGLE_AUTH_ENABLED", False)
+    _override_auth_runtime(monkeypatch, False)
     resp = client.post("/api/auth/google", json={"id_token": "token"})
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Google authentication is disabled"
@@ -25,7 +41,7 @@ def test_auth_disabled_rejects_login(monkeypatch: pytest.MonkeyPatch, client: Te
 
 
 def test_google_auth_flow_requires_cookie(monkeypatch: pytest.MonkeyPatch, client: TestClient):
-    monkeypatch.setattr(settings, "GOOGLE_AUTH_ENABLED", True)
+    _override_auth_runtime(monkeypatch, True)
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "client-id")
     monkeypatch.setattr(settings, "SESSION_SECRET", "super-secret")
     monkeypatch.setattr(settings, "ADMIN_GOOGLE_EMAIL", "admin@example.com")

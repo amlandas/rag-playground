@@ -16,12 +16,10 @@ client = TestClient(app)
 
 
 def _disable_auth(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "GOOGLE_AUTH_ENABLED", False)
     monkeypatch.setattr(session_auth, "maybe_require_auth", lambda user: None)
 
 
 def _upload_and_index(monkeypatch) -> str:
-    _disable_auth(monkeypatch)
     monkeypatch.setattr(settings, "EMBEDDINGS_PROVIDER", "fake")
     files = {"files": ("policy.txt", b"Our PTO Policy references Remote Policy and Security Guide.", "text/plain")}
     upload = client.post("/api/upload", files=files)
@@ -33,18 +31,21 @@ def _upload_and_index(monkeypatch) -> str:
 
 
 def _set_runtime_config(monkeypatch, **overrides) -> RuntimeConfig:
-    features = FeatureFlags(
-        graph_enabled=overrides.get("graph_enabled", True),
-        llm_rerank_enabled=overrides.get("llm_rerank_enabled", False),
-        fact_check_llm_enabled=overrides.get("fact_check_llm_enabled", False),
-        fact_check_strict=overrides.get("fact_check_strict", False),
-    )
-    graph = GraphRagConfig(
-        max_graph_hops=overrides.get("max_graph_hops", 2),
-        advanced_max_subqueries=overrides.get("advanced_max_subqueries", 3),
-        advanced_default_k=overrides.get("advanced_default_k", 6),
-        advanced_default_temperature=overrides.get("advanced_default_temperature", 0.2),
-    )
+    feature_defaults = {
+        "google_auth_enabled": overrides.pop("google_auth_enabled", False),
+        "graph_enabled": overrides.pop("graph_enabled", True),
+        "llm_rerank_enabled": overrides.pop("llm_rerank_enabled", False),
+        "fact_check_llm_enabled": overrides.pop("fact_check_llm_enabled", False),
+        "fact_check_strict": overrides.pop("fact_check_strict", False),
+    }
+    graph_defaults = {
+        "max_graph_hops": overrides.pop("max_graph_hops", 2),
+        "advanced_max_subqueries": overrides.pop("advanced_max_subqueries", 3),
+        "advanced_default_k": overrides.pop("advanced_default_k", 6),
+        "advanced_default_temperature": overrides.pop("advanced_default_temperature", 0.2),
+    }
+    features = FeatureFlags(**feature_defaults)
+    graph = GraphRagConfig(**graph_defaults)
     cfg = RuntimeConfig(environment="test", features=features, graph_rag=graph)
     monkeypatch.setattr(runtime_config_service, "_test_override", cfg, raising=False)
     monkeypatch.setattr(runtime_config_service, "_runtime_config_cache", cfg, raising=False)

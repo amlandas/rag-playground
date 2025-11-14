@@ -24,7 +24,6 @@ def client():
 
 
 def _configure_auth(monkeypatch: pytest.MonkeyPatch, admin_email: str = "admin@example.com"):
-    monkeypatch.setattr(settings, "GOOGLE_AUTH_ENABLED", True)
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "client-id")
     monkeypatch.setattr(settings, "SESSION_SECRET", "super-secret")
     monkeypatch.setattr(settings, "ADMIN_GOOGLE_EMAIL", admin_email)
@@ -39,10 +38,11 @@ def _mock_google_verify(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("app.routers.auth.id_token.verify_oauth2_token", fake_verify)
 
 
-def _override_runtime_config(monkeypatch: pytest.MonkeyPatch):
+def _override_runtime_config(monkeypatch: pytest.MonkeyPatch, *, google_enabled: bool = True):
     cfg = RuntimeConfig(
         environment="test",
         features=FeatureFlags(
+            google_auth_enabled=google_enabled,
             graph_enabled=True,
             llm_rerank_enabled=True,
             fact_check_llm_enabled=True,
@@ -62,6 +62,7 @@ def _override_runtime_config(monkeypatch: pytest.MonkeyPatch):
 def test_metrics_summary_requires_admin(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     _configure_auth(monkeypatch)
     _mock_google_verify(monkeypatch)
+    _override_runtime_config(monkeypatch)
 
     # Without authentication
     resp = client.get("/api/metrics/summary")
@@ -106,6 +107,7 @@ def test_metrics_summary_returns_counts(monkeypatch: pytest.MonkeyPatch, client:
     assert payload["last_error_ts"] is not None
     assert payload["rerank_strategy_current"]
     assert payload["answer_mode_default"]
+    assert payload["google_auth_enabled"] is True
     assert "graph_enabled" in payload
     assert "advanced_graph_enabled" in payload
     assert "advanced_llm_enabled" in payload
@@ -119,8 +121,7 @@ def test_metrics_summary_returns_counts(monkeypatch: pytest.MonkeyPatch, client:
 
 
 def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
-    monkeypatch.setattr(settings, "GOOGLE_AUTH_ENABLED", False)
-    _override_runtime_config(monkeypatch)
+    _override_runtime_config(monkeypatch, google_enabled=False)
     resp = client.get("/api/health/details")
     assert resp.status_code == 200
     payload = resp.json()
@@ -130,6 +131,7 @@ def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     assert "ce_available" in payload
     assert "llm_available" in payload
     assert "answer_mode_default" in payload
+    assert payload["google_auth_enabled"] is False
     assert "graph_enabled" in payload
     assert "advanced_graph_enabled" in payload
     assert "advanced_llm_enabled" in payload

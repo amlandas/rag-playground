@@ -13,6 +13,7 @@ def test_runtime_config_env_fallback(monkeypatch):
     runtime_config.reload_runtime_config()
 
     cfg = runtime_config.get_runtime_config()
+    assert cfg.features.google_auth_enabled is False
     assert cfg.features.graph_enabled is True
     assert cfg.graph_rag.max_graph_hops == 5
     assert cfg.environment == os.getenv("CONFIG_ENV", "local")

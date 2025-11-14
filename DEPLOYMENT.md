@@ -46,21 +46,10 @@ Create a trigger targeting branch `main` with:
 | `_REGION` | `us-west1` | Optional override. |
 | `_SERVICE_NAME` | `rag-playground-api` | Cloud Run service name. |
 | `_EMBEDDINGS_PROVIDER` | `openai` | Backend embeddings provider. |
-| `_GOOGLE_AUTH_ENABLED` | `true` | Toggle Google auth. |
-| `_GRAPH_ENABLED` | `false` | Enables advanced graph mode (default false). |
-| `_MAX_GRAPH_HOPS` | `2` | Maximum graph traversal hops. |
-| `_LLM_RERANK_ENABLED` | `false` | Enable LLM-based rerank for advanced mode. |
-| `_FACT_CHECK_STRICT` | `false` | Force RAG-V verification on each advanced query. |
-| `_FACT_CHECK_LLM_ENABLED` | `false` | Allow LLM fact-check verification mode. |
-| `_ADVANCED_MAX_SUBQUERIES` | `3` | Planner cap on sub-queries. |
-| `_ADVANCED_DEFAULT_K` | `6` | Default top-k passages for advanced mode. |
-| `_ADVANCED_DEFAULT_TEMPERATURE` | `0.2` | Default generation temperature for advanced mode. |
 | `_FIRESTORE_CONFIG_ENABLED` | `false` | Enable Firestore-backed runtime config (`runtime_config/{CONFIG_ENV}`). |
 | `_CONFIG_ENV` | `prod` | Which Firestore document to read (also used as the env fallback label). |
 | `_CORS_ALLOWED_ORIGINS` | `https://rag-playground-web-908840126213.us-west1.run.app,http://localhost:3000` | Comma-separated origins (no brackets). |
 | `_SECRET_VARS` | `OPENAI_API_KEY=openai-api-key:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_ID=google-client-id:latest,ADMIN_GOOGLE_EMAIL=admin-email:latest` | Each entry uses the `VAR=secret-name:version` format for `gcloud run --set-secrets`. Versions can be `latest` or a number. |
-
-> **Runtime config defaults:** Each deploy still pushes env defaults for the advanced knobs so local/dev environments continue to work without Firestore. When `FIRESTORE_CONFIG_ENABLED=true`, the API reads `runtime_config/{CONFIG_ENV}` and overrides the env values field-by-field, falling back only when a document field is missing.
 
 The pipeline:
 1. Builds the API image with the repo-root `Dockerfile`.
@@ -116,16 +105,13 @@ Steps:
    export EMBEDDINGS_PROVIDER="openai"
    export OPENAI_API_KEY="sk-...your key..."
    export SESSION_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')"
-   export GOOGLE_AUTH_ENABLED="true"
+   export FIRESTORE_CONFIG_ENABLED="true"
+   export CONFIG_ENV="prod"
    export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
    export ADMIN_GOOGLE_EMAIL="your-email@gmail.com"
    export CORS_ALLOWED_ORIGINS="https://your-web-service.a.run.app"
-   export GRAPH_ENABLED="false"
-   export MAX_GRAPH_HOPS="2"
-   export LLM_RERANK_ENABLED="false"
-   export FACT_CHECK_STRICT="false"
    ```
-   Set `GOOGLE_AUTH_ENABLED=false` and omit the Google-specific vars if you do not need auth.
+   Set `FIRESTORE_CONFIG_ENABLED=false` (and optionally export `GOOGLE_AUTH_ENABLED`) only when you want to fall back to env-based flags for local testing. Otherwise, manage the runtime toggles via Firestore `runtime_config/{CONFIG_ENV}`.
 
 2. Deploy:
    ```bash
@@ -190,8 +176,8 @@ Advanced/Graph RAG tuning is stored in a Firestore collection so you can flip kn
    }
    ```
 2. **Enable Firestore overrides** – Set `FIRESTORE_CONFIG_ENABLED=true` (Cloud Build substitution `_FIRESTORE_CONFIG_ENABLED`) and choose the environment via `_CONFIG_ENV`. The collection defaults to `runtime_config`, but you can override it with `RUNTIME_CONFIG_COLLECTION`.
-3. **Fallback behavior** – If the document is missing or a field is absent, the API logs a warning and falls back to the corresponding env var (`GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, etc.), so local dev keeps working without Firestore.
-4. **What stays in env** – Infrastructure, provider selection, secrets, and base auth toggles remain env/Secret Manager driven (`EMBEDDINGS_PROVIDER`, OpenAI key, Google OAuth, `SESSION_SECRET`, `GOOGLE_AUTH_ENABLED`, etc.). Firestore only owns the Graph RAG feature flags and tuning knobs listed above.
+3. **Fallback behavior** – If the document is missing or a field is absent, the API logs a warning and falls back to the corresponding env var (`GOOGLE_AUTH_ENABLED`, `GRAPH_ENABLED`, `MAX_GRAPH_HOPS`, etc.), so local dev keeps working without Firestore.
+4. **What stays in env** – Infrastructure, provider selection, and secrets remain env/Secret Manager driven (`EMBEDDINGS_PROVIDER`, OpenAI key, Google OAuth client ID/secret, `SESSION_SECRET`, etc.). Firestore now owns the runtime feature flags listed above; use the legacy env vars only when Firestore config is disabled (e.g., local development).
 5. **Diagnostics** – `/api/health/details` and `/api/metrics/summary` report the effective values plus `firestore_config_enabled`, `runtime_config_source`, and `config_env` so you can verify which source is in effect.
 6. **Backward compatibility** – If you previously stored flat fields (e.g., `graph_enabled: true` at the document root) the API automatically normalizes them, but the nested `features` / `graph_rag` layout makes intent clearer going forward.
 
@@ -208,21 +194,22 @@ Run the local test suites to ensure reproducible builds:
 SESSION_SECRET=local-test-secret poetry run pytest -q   # apps/api
 cd apps/web && pnpm test:sanity                       # apps/web
 ```
-- **Environment parity**: The same Cloud Run deploy scripts used for prod can run with `GOOGLE_AUTH_ENABLED=true` / `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true` so long as you provide the Google client ID and admin email.
+- **Environment parity**: Use the Firestore runtime config (`google_auth_enabled`) to toggle API auth in every environment. Export `GOOGLE_AUTH_ENABLED` only when Firestore overrides are disabled (for example, purely local deployments). The frontend still needs `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` to decide whether to show the Sign-In UI.
 
 ## Enabling Google Sign-In
 
 1. **Create a Google OAuth “Web application” client.** Copy the Client ID and add both `https://rag-playground-web-<project>.a.run.app` and `https://rag-playground-api-<project>.a.run.app` (if you call auth endpoints directly) to the “Authorized JavaScript origins” list. No client secret is needed for token verification.
 2. **Configure the API service.**
    ```bash
-   export GOOGLE_AUTH_ENABLED="true"
+   export FIRESTORE_CONFIG_ENABLED="true"
+   export CONFIG_ENV="prod"
    export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
    export ADMIN_GOOGLE_EMAIL="admin@example.com"
    export SESSION_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')"
    export CORS_ALLOWED_ORIGINS="https://rag-playground-web-XXXX.a.run.app,https://rag-playground-web-fsx6dmftva-uw.a.run.app"
    ./infra/gcp/deploy_cloud_run.sh
    ```
-   `ADMIN_GOOGLE_EMAIL` gates admin-only UI/actions; omit or change it to adjust.
+   Set `"google_auth_enabled": true` (and any other desired flags) inside `runtime_config/{CONFIG_ENV}`. `ADMIN_GOOGLE_EMAIL` gates admin-only UI/actions; omit or change it to adjust.
 3. **Configure the web service.**
    ```bash
    export NEXT_PUBLIC_GOOGLE_AUTH_ENABLED="true"

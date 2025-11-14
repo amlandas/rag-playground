@@ -27,6 +27,7 @@ async def health_details():
         "ce_available": ce_available(),
         "llm_available": llm_available(),
         "answer_mode_default": settings.ANSWER_MODE_DEFAULT,
+        "google_auth_enabled": features.google_auth_enabled,
         "graph_enabled": features.graph_enabled,
         "advanced_graph_enabled": features.graph_enabled,
         "advanced_llm_enabled": llm_capable,

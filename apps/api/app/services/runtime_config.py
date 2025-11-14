@@ -20,6 +20,7 @@ class GraphRagConfig(BaseModel):
 
 
 class FeatureFlags(BaseModel):
+    google_auth_enabled: bool = False
     graph_enabled: bool = False
     llm_rerank_enabled: bool = False
     fact_check_llm_enabled: bool = False
@@ -43,6 +44,7 @@ _runtime_config_metadata: Dict[str, Any] = {
 _test_override: RuntimeConfig | None = None
 
 _FEATURE_FIELDS = (
+    "google_auth_enabled",
     "graph_enabled",
     "llm_rerank_enabled",
     "fact_check_llm_enabled",
@@ -93,6 +95,7 @@ def _env_float(name: str, default: float) -> float:
 
 def _load_env_config(config_env: str) -> RuntimeConfig:
     features = FeatureFlags(
+        google_auth_enabled=_env_bool(("GOOGLE_AUTH_ENABLED", "RAG_GOOGLE_AUTH_ENABLED"), False),
         graph_enabled=_env_bool(("GRAPH_ENABLED", "RAG_GRAPH_ENABLED"), False),
         llm_rerank_enabled=_env_bool(("LLM_RERANK_ENABLED", "RAG_LLM_RERANK_ENABLED"), False),
         fact_check_llm_enabled=_env_bool(("FACT_CHECK_LLM_ENABLED", "RAG_FACT_CHECK_LLM_ENABLED"), False),
@@ -246,6 +249,42 @@ def get_runtime_config_metadata() -> Dict[str, Any]:
             "runtime_config_source": "test-override",
         }
     return dict(_runtime_config_metadata)
+
+
+def google_auth_enabled_effective() -> bool:
+    return get_runtime_config().features.google_auth_enabled
+
+
+def graph_enabled_effective() -> bool:
+    return get_runtime_config().features.graph_enabled
+
+
+def llm_rerank_enabled_effective() -> bool:
+    return get_runtime_config().features.llm_rerank_enabled
+
+
+def fact_check_llm_enabled_effective() -> bool:
+    return get_runtime_config().features.fact_check_llm_enabled
+
+
+def fact_check_strict_effective() -> bool:
+    return get_runtime_config().features.fact_check_strict
+
+
+def max_graph_hops_effective() -> int:
+    return get_runtime_config().graph_rag.max_graph_hops
+
+
+def advanced_max_subqueries_effective() -> int:
+    return get_runtime_config().graph_rag.advanced_max_subqueries
+
+
+def advanced_default_k_effective() -> int:
+    return get_runtime_config().graph_rag.advanced_default_k
+
+
+def advanced_default_temperature_effective() -> float:
+    return get_runtime_config().graph_rag.advanced_default_temperature
 
 
 def override_runtime_config_for_tests(config: RuntimeConfig) -> None:

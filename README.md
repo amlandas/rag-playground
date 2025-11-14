@@ -31,12 +31,12 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 ### Auth in Cloud Run
 - The web and API services live on different Cloud Run origins, so Google Identity cookies must work cross-site. The backend automatically sets `SameSite=None; Secure` when at least one HTTPS, non-local origin is present in `CORS_ALLOWED_ORIGINS`.
 - Required env vars:
-  - API: `GOOGLE_AUTH_ENABLED`, `GOOGLE_CLIENT_ID`, `ADMIN_GOOGLE_EMAIL`, `SESSION_SECRET`, `CORS_ALLOWED_ORIGINS` (include both the web origin(s) and any local dev origins separated by commas).
+  - API: `GOOGLE_CLIENT_ID`, `ADMIN_GOOGLE_EMAIL`, `SESSION_SECRET`, `CORS_ALLOWED_ORIGINS` (include both the web origin(s) and any local dev origins separated by commas). Toggle auth via the Firestore field `google_auth_enabled`; use the legacy `GOOGLE_AUTH_ENABLED` env var only when Firestore config is disabled (e.g., local development).
   - Web: `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_API_BASE_URL`.
 - GIS must load from the web origin. Ensure the OAuth client’s “Authorized JavaScript origins” list contains the Cloud Run web URL(s) and any developer origins.
 
 ### Advanced Graph Mode
-- **Runtime config (Firestore + env fallback):** Graph/advanced tuning now comes from `runtime_config/{CONFIG_ENV}` in Firestore. Set `FIRESTORE_CONFIG_ENABLED=true` and `CONFIG_ENV=prod` (for example) to make the API read the document, which should define `features.graph_enabled`, `features.llm_rerank_enabled`, `features.fact_check_llm_enabled`, `features.fact_check_strict`, and the `graph_rag.*` knobs (`max_graph_hops`, `advanced_max_subqueries`, `advanced_default_k`, `advanced_default_temperature`). (The API also accepts a flat document with those same field names for backward compatibility.) When Firestore is disabled or a field is missing, the service falls back to the existing env vars so local dev keeps working without extra infra.
+- **Runtime config (Firestore + env fallback):** Graph/advanced tuning and the Google auth toggle now come from `runtime_config/{CONFIG_ENV}` in Firestore. Set `FIRESTORE_CONFIG_ENABLED=true` and `CONFIG_ENV=prod` (for example) to make the API read the document, which should define flat fields such as `google_auth_enabled`, `graph_enabled`, `max_graph_hops`, `llm_rerank_enabled`, `fact_check_llm_enabled`, `fact_check_strict`, `advanced_max_subqueries`, `advanced_default_k`, and `advanced_default_temperature`. When Firestore is disabled or a field is missing, the service falls back to the existing env vars so local dev keeps working without extra infra.
 - **Frontend flags**: `NEXT_PUBLIC_GRAPH_RAG_ENABLED`, `NEXT_PUBLIC_LLM_RERANK_ENABLED`, `NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED`.
 - **Pipeline**: `POST /api/query/advanced` executes planner → graph traversal → hybrid retrieval → CE/LLM rerank → per-sub-query LLM summarization → LLM synthesis → optional verification (RAG-V or fact-check LLM). If the OpenAI stack is unavailable (e.g., `EMBEDDINGS_PROVIDER=fake`), the pipeline gracefully falls back to deterministic summaries while still returning structured answers.
 - **Diagnostics**: `/api/health/details` and `/api/metrics/summary` surface the effective runtime config (`graph_enabled`, max hops, advanced defaults, Firestore status/source, etc.) so you can confirm prod configuration without redeploying.
@@ -79,7 +79,7 @@ Open http://localhost:3000/playground and click **Use sample dataset → Build i
    - Authorized redirect URI: not required (Google Identity Services one-tap uses postMessage).
 2. **Configure environment variables**:
    ```bash
-   # API (apps/api/.env)
+   # API (apps/api/.env) - set google_auth_enabled=true in Firestore for prod; export this env var only when Firestore config is disabled locally
    GOOGLE_AUTH_ENABLED=true
    GOOGLE_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE
    ADMIN_GOOGLE_EMAIL=you@example.com

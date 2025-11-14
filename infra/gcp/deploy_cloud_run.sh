@@ -16,10 +16,11 @@ Usage:
   export EMBEDDINGS_PROVIDER="openai"
   export OPENAI_API_KEY="sk-..."
   export SESSION_SECRET="..."
-  export GOOGLE_AUTH_ENABLED="false"
+  export FIRESTORE_CONFIG_ENABLED="true"
+  export CONFIG_ENV="prod"
   export CORS_ALLOWED_ORIGINS="https://your-frontend.example.com"
-  # When GOOGLE_AUTH_ENABLED=true also export:
-  #   GOOGLE_CLIENT_ID, ADMIN_GOOGLE_EMAIL
+  export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+  export ADMIN_GOOGLE_EMAIL="admin@example.com"
 
   ./infra/gcp/deploy_cloud_run.sh
 
@@ -33,10 +34,12 @@ Environment variables:
   EMBEDDINGS_PROVIDER   (required) e.g. openai or fake.
   OPENAI_API_KEY        (required) API key unless provider=fake.
   SESSION_SECRET        (required) Strong secret for session signing.
-  GOOGLE_AUTH_ENABLED   (required) true or false.
+  FIRESTORE_CONFIG_ENABLED (required) true or false.
+  CONFIG_ENV            (required) Firestore document id (e.g., prod).
   CORS_ALLOWED_ORIGINS  (required) Comma-separated list of allowed origins.
-  GOOGLE_CLIENT_ID      (required when GOOGLE_AUTH_ENABLED=true)
-  ADMIN_GOOGLE_EMAIL    (required when GOOGLE_AUTH_ENABLED=true)
+  GOOGLE_CLIENT_ID      (required) Google OAuth client id.
+  ADMIN_GOOGLE_EMAIL    (required) Admin email for dashboard access.
+  GOOGLE_AUTH_ENABLED   (optional) Legacy fallback when Firestore config is disabled.
 EOF
 }
 
@@ -63,22 +66,13 @@ REPO_NAME="${REPO_NAME:-rag-playground}"
 IMAGE_TAG="$(date +%Y%m%d%H%M%S)"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${SERVICE_NAME}:${IMAGE_TAG}"
 
-REQUIRED_VARS=(EMBEDDINGS_PROVIDER OPENAI_API_KEY SESSION_SECRET GOOGLE_AUTH_ENABLED CORS_ALLOWED_ORIGINS)
+REQUIRED_VARS=(EMBEDDINGS_PROVIDER OPENAI_API_KEY SESSION_SECRET FIRESTORE_CONFIG_ENABLED CONFIG_ENV CORS_ALLOWED_ORIGINS GOOGLE_CLIENT_ID ADMIN_GOOGLE_EMAIL)
 MISSING_VARS=()
 for var in "${REQUIRED_VARS[@]}"; do
   if [[ -z "${!var:-}" ]]; then
     MISSING_VARS+=("${var}")
   fi
 done
-
-if [[ "${GOOGLE_AUTH_ENABLED,,}" == "true" ]]; then
-  AUTH_VARS=(GOOGLE_CLIENT_ID ADMIN_GOOGLE_EMAIL)
-  for var in "${AUTH_VARS[@]}"; do
-    if [[ -z "${!var:-}" ]]; then
-      MISSING_VARS+=("${var}")
-    fi
-  done
-fi
 
 if (( ${#MISSING_VARS[@]} > 0 )); then
   echo "Error: missing required environment variables: ${MISSING_VARS[*]}" >&2
@@ -117,9 +111,14 @@ ENV_VARS=(
   "EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER}"
   "OPENAI_API_KEY=${OPENAI_API_KEY}"
   "SESSION_SECRET=${SESSION_SECRET}"
-  "GOOGLE_AUTH_ENABLED=${GOOGLE_AUTH_ENABLED}"
+  "FIRESTORE_CONFIG_ENABLED=${FIRESTORE_CONFIG_ENABLED}"
+  "CONFIG_ENV=${CONFIG_ENV}"
   "CORS_ALLOWED_ORIGINS=${TRIMMED_CORS}"
 )
+
+if [[ -n "${GOOGLE_AUTH_ENABLED:-}" ]]; then
+  ENV_VARS+=("GOOGLE_AUTH_ENABLED=${GOOGLE_AUTH_ENABLED}")
+fi
 
 if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
   ENV_VARS+=("GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}")

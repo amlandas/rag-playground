@@ -131,6 +131,7 @@ def get_metrics_summary() -> dict:
         "rerank_strategy_current": effective_strategy(),
         "rerank_strategy_configured": settings.RERANK_STRATEGY,
         "answer_mode_default": settings.ANSWER_MODE_DEFAULT,
+        "google_auth_enabled": features.google_auth_enabled,
         "graph_enabled": features.graph_enabled,
         "advanced_graph_enabled": features.graph_enabled,
         "advanced_llm_enabled": settings.advanced_llm_enabled,
