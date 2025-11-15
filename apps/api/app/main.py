@@ -3,13 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .middleware import cleanup_session_middleware
+from .services.cors import cors_config_summary
 from .routers import answer, auth, compare, debug, feedback, health, ingest, metrics, query, query_advanced
 
 app = FastAPI(title="RAG Playground API", version="0.1.0")
 
-cors_origins = ["*"]
-if settings.ALLOW_ORIGINS:
-    cors_origins = [origin.strip() for origin in settings.ALLOW_ORIGINS.split(",") if origin.strip()]
+cors_origins, cors_source = cors_config_summary(settings.ALLOW_ORIGINS)
+print(f"[CONFIG] cors allow_origins={cors_origins} source={cors_source}")
 
 app.add_middleware(
     CORSMiddleware,

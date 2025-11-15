@@ -36,7 +36,8 @@ steps:
           CMD_ARGS=(--image "${_IMAGE}" --region "${_REGION}" --platform managed --allow-unauthenticated)
           set_env_with_default "EMBEDDINGS_PROVIDER" "${_EMBEDDINGS_PROVIDER:-}" "openai"
           set_env_with_default "FIRESTORE_CONFIG_ENABLED" "${_FIRESTORE_CONFIG_ENABLED:-}" "false"
-          set_env_with_default "CONFIG_ENV" "${_CONFIG_ENV:-}" "local"
+          set_env_with_default "CONFIG_ENV" "${_CONFIG_ENV:-}" "prod"
+          set_env_with_default "GOOGLE_AUTH_ENABLED" "${_GOOGLE_AUTH_ENABLED:-}" "true"
           # Pass through CORS from the trigger if set
           if [[ -n "${_CORS_ALLOWED_ORIGINS:-}" ]]; then
             set_env_var "CORS_ALLOWED_ORIGINS" "${_CORS_ALLOWED_ORIGINS}"
@@ -50,6 +51,7 @@ steps:
           else
             echo "Deploying ${_SERVICE_NAME} with CORS_ALLOWED_ORIGINS=<unset>"
           fi
+          echo "Deploying ${_SERVICE_NAME} with GOOGLE_AUTH_ENABLED=${_GOOGLE_AUTH_ENABLED:-true}"
           gcloud run deploy "${_SERVICE_NAME}" "${CMD_ARGS[@]}"
 
 images:
@@ -61,6 +63,7 @@ substitutions:
   _EMBEDDINGS_PROVIDER: ""
   _FIRESTORE_CONFIG_ENABLED: ""
   _CONFIG_ENV: ""
+  _GOOGLE_AUTH_ENABLED: ""
   _CORS_ALLOWED_ORIGINS: ""
   _SECRET_VARS: ""
 

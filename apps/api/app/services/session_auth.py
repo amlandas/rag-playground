@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from fastapi import HTTPException, Request, Response
 
 from ..config import settings
+from .cors import effective_cors_origins
 from .runtime_config import google_auth_enabled_effective
 
 SESSION_COOKIE_NAME = "rag_session"
@@ -75,14 +76,7 @@ def decode_session_token(token: str) -> Optional[Dict[str, Any]]:
 
 
 def _parsed_origins() -> list[str]:
-    raw = settings.ALLOW_ORIGINS or ""
-    origins: list[str] = []
-    for chunk in raw.split(","):
-        value = chunk.strip()
-        if not value:
-            continue
-        origins.append(value)
-    return origins
+    return effective_cors_origins(settings.ALLOW_ORIGINS)
 
 
 def _origin_is_local(origin: str) -> bool:

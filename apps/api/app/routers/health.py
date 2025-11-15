@@ -1,8 +1,13 @@
 from fastapi import APIRouter
 
 from ..config import settings
+from ..services.cors import cors_config_summary
 from ..services.reranker import ce_available, llm_available, effective_strategy
-from ..services.runtime_config import get_runtime_config, get_runtime_config_metadata
+from ..services.runtime_config import (
+    get_runtime_config,
+    get_runtime_config_metadata,
+    google_auth_enabled_effective,
+)
 
 router = APIRouter()
 
@@ -20,6 +25,7 @@ async def health_details():
     features = runtime_cfg.features
     graph_conf = runtime_cfg.graph_rag
     llm_capable = settings.advanced_llm_enabled
+    cors_origins, cors_source = cors_config_summary(settings.ALLOW_ORIGINS)
     return {
         "status": "ok",
         "rerank_strategy_effective": strategy_effective,
@@ -28,6 +34,7 @@ async def health_details():
         "llm_available": llm_available(),
         "answer_mode_default": settings.ANSWER_MODE_DEFAULT,
         "google_auth_enabled": features.google_auth_enabled,
+        "google_auth_effective": google_auth_enabled_effective(),
         "graph_enabled": features.graph_enabled,
         "advanced_graph_enabled": features.graph_enabled,
         "advanced_llm_enabled": llm_capable,
@@ -41,5 +48,7 @@ async def health_details():
         "firestore_config_enabled": runtime_meta["firestore_config_enabled"],
         "runtime_config_source": runtime_meta["runtime_config_source"],
         "config_env": runtime_meta["config_env"],
+        "cors_allowed_origins": cors_origins,
+        "cors_config_source": cors_source,
         "version": "local-dev",
     }

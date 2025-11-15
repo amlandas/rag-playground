@@ -97,3 +97,16 @@ def test_runtime_config_firestore_flat_document(monkeypatch):
     monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
     monkeypatch.delenv("CONFIG_ENV", raising=False)
     runtime_config.reload_runtime_config()
+
+
+def test_runtime_config_google_auth_env_override(monkeypatch):
+    runtime_config.clear_runtime_config_override()
+    monkeypatch.setenv("FIRESTORE_CONFIG_ENABLED", "false")
+    monkeypatch.setenv("GOOGLE_AUTH_ENABLED", "true")
+    runtime_config.reload_runtime_config()
+    cfg = runtime_config.get_runtime_config()
+    assert cfg.features.google_auth_enabled is True
+    assert runtime_config.google_auth_enabled_effective() is True
+    monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
+    monkeypatch.delenv("GOOGLE_AUTH_ENABLED", raising=False)
+    runtime_config.reload_runtime_config()

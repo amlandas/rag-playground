@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from ..config import settings
+from ..services.cors import cors_config_summary
 from ..services.reranker import effective_strategy
 from ..services.runtime_config import get_runtime_config, get_runtime_config_metadata
 
@@ -120,6 +121,7 @@ def get_metrics_summary() -> dict:
     runtime_meta = get_runtime_config_metadata()
     features = runtime_cfg.features
     graph_conf = runtime_cfg.graph_rag
+    cors_origins, cors_source = cors_config_summary(settings.ALLOW_ORIGINS)
     summary = {
         "total_sessions": _metrics_state["total_sessions"],
         "total_indices": _metrics_state["total_indices"],
@@ -146,5 +148,7 @@ def get_metrics_summary() -> dict:
         "runtime_config_source": runtime_meta["runtime_config_source"],
         "config_env": runtime_meta["config_env"],
         "advanced_graph": dict(_metrics_state["advanced_graph"]),
+        "cors_allowed_origins": cors_origins,
+        "cors_config_source": cors_source,
     }
     return summary

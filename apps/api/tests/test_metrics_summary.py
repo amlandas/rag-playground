@@ -118,6 +118,8 @@ def test_metrics_summary_returns_counts(monkeypatch: pytest.MonkeyPatch, client:
     assert "firestore_config_enabled" in payload
     assert "runtime_config_source" in payload
     assert payload["config_env"]
+    assert isinstance(payload["cors_allowed_origins"], list)
+    assert payload["cors_config_source"]
 
 
 def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
@@ -132,6 +134,7 @@ def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     assert "llm_available" in payload
     assert "answer_mode_default" in payload
     assert payload["google_auth_enabled"] is False
+    assert payload["google_auth_effective"] is False
     assert "graph_enabled" in payload
     assert "advanced_graph_enabled" in payload
     assert "advanced_llm_enabled" in payload
@@ -143,3 +146,5 @@ def test_health_details(monkeypatch: pytest.MonkeyPatch, client: TestClient):
     assert "firestore_config_enabled" in payload
     assert "runtime_config_source" in payload
     assert "config_env" in payload
+    assert isinstance(payload["cors_allowed_origins"], list)
+    assert payload["cors_config_source"]
