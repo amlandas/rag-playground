@@ -20,7 +20,8 @@ steps:
           set_env_var() {
             local key="$1"
             local value="$2"
-            CMD_ARGS+=("--set-env-vars=${key}=${value}")
+            # Use custom delimiter (^|^) so values can contain commas safely
+            CMD_ARGS+=("--set-env-vars=^|^${key}=${value}")
           }
 
           set_env_with_default() {
