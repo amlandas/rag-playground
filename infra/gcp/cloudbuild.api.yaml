@@ -37,12 +37,14 @@ steps:
           set_env_with_default "EMBEDDINGS_PROVIDER" "${_EMBEDDINGS_PROVIDER:-}" "openai"
           set_env_with_default "FIRESTORE_CONFIG_ENABLED" "${_FIRESTORE_CONFIG_ENABLED:-}" "false"
           set_env_with_default "CONFIG_ENV" "${_CONFIG_ENV:-}" "local"
-          if [[ -n "${_CORS_ALLOWED_ORIGINS:-}" ]]; then
-            set_env_var "CORS_ALLOWED_ORIGINS" "${_CORS_ALLOWED_ORIGINS}"
+          CORS_ALLOWED_ORIGINS_VALUE="${_CORS_ALLOWED_ORIGINS:-}"
+          if [[ -n "${CORS_ALLOWED_ORIGINS_VALUE}" ]]; then
+            set_env_var "CORS_ALLOWED_ORIGINS" "${CORS_ALLOWED_ORIGINS_VALUE}"
           fi
           if [[ -n "${_SECRET_VARS:-}" ]]; then
             CMD_ARGS+=("--set-secrets=${_SECRET_VARS}")
           fi
+          echo "Deploying ${_SERVICE_NAME} with CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS_VALUE:-<unset>}"
           gcloud run deploy "${_SERVICE_NAME}" "${CMD_ARGS[@]}"
 
 images:
