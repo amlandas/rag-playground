@@ -110,6 +110,7 @@ export type HealthDetails = {
   llm_available: boolean;
   answer_mode_default: string;
   version?: string;
+  graph_rag_traces_enabled?: boolean;
 };
 
 export type AdvancedRetrievedMeta = {
@@ -144,10 +145,92 @@ export type AdvancedVerificationSummary = {
 
 export type AdvancedQueryResponse = {
   session_id: string;
+  request_id: string;
   query: string;
   planner: Record<string, unknown>;
   subqueries: AdvancedSubQueryResult[];
   answer: string;
   citations: Array<Record<string, unknown>>;
   verification?: AdvancedVerificationSummary | null;
+  trace?: GraphRagTrace | null;
+};
+
+export type GraphRagTraceConfig = {
+  k: number;
+  max_hops: number;
+  temperature: number;
+  rerank_strategy: string;
+  verification_mode: string;
+  model: string;
+  max_subqueries: number;
+};
+
+export type GraphRagTracePlannerStep = {
+  id: number;
+  text: string;
+  stage: string;
+  tags?: string[];
+};
+
+export type GraphRagTracePlanner = {
+  sub_queries: GraphRagTracePlannerStep[];
+  notes?: string | null;
+};
+
+export type GraphRagTraceDocument = {
+  doc_id: string;
+  chunk_index: number;
+  rank: number;
+  snippet?: string | null;
+  dense_score?: number | null;
+  lexical_score?: number | null;
+  fused_score?: number | null;
+  rerank_score?: number | null;
+};
+
+export type GraphRagTraceRetrieval = {
+  sub_query: string;
+  documents: GraphRagTraceDocument[];
+  graph_paths: Array<Record<string, unknown>>;
+  metrics: Record<string, number>;
+};
+
+export type GraphRagTraceRerank = {
+  strategy: string;
+  latency_ms: number;
+  top_documents: GraphRagTraceDocument[];
+};
+
+export type GraphRagTraceSummary = {
+  text: string;
+  citations: string[];
+};
+
+export type GraphRagTraceSubQueryTrace = {
+  id: number;
+  query: string;
+  retrieval: GraphRagTraceRetrieval;
+  rerank?: GraphRagTraceRerank | null;
+  summary: GraphRagTraceSummary;
+  warnings: string[];
+};
+
+export type GraphRagTraceSynthesis = {
+  answer: string;
+  citations: Array<Record<string, unknown>>;
+  model: string;
+  notes?: string | null;
+};
+
+export type GraphRagTrace = {
+  request_id: string;
+  session_id: string;
+  query: string;
+  timestamp: string;
+  config: GraphRagTraceConfig;
+  planner: GraphRagTracePlanner;
+  subqueries: GraphRagTraceSubQueryTrace[];
+  verification?: AdvancedVerificationSummary | null;
+  synthesis: GraphRagTraceSynthesis;
+  warnings: string[];
 };
