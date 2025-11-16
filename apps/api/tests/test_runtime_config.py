@@ -110,3 +110,17 @@ def test_runtime_config_google_auth_env_override(monkeypatch):
     monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
     monkeypatch.delenv("GOOGLE_AUTH_ENABLED", raising=False)
     runtime_config.reload_runtime_config()
+
+
+def test_graph_traces_flag_env_override(monkeypatch):
+    runtime_config.clear_runtime_config_override()
+    monkeypatch.setenv("FIRESTORE_CONFIG_ENABLED", "false")
+    monkeypatch.setenv("GRAPH_TRACES_ENABLED", "false")
+    runtime_config.reload_runtime_config()
+    assert runtime_config.graph_traces_enabled_effective() is False
+    monkeypatch.setenv("GRAPH_TRACES_ENABLED", "true")
+    runtime_config.reload_runtime_config()
+    assert runtime_config.graph_traces_enabled_effective() is True
+    monkeypatch.delenv("GRAPH_TRACES_ENABLED", raising=False)
+    monkeypatch.delenv("FIRESTORE_CONFIG_ENABLED", raising=False)
+    runtime_config.reload_runtime_config()

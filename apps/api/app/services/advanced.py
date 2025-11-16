@@ -4,15 +4,33 @@ import json
 import logging
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Tuple
+import uuid
 
 from ..config import settings
-from ..schemas import AdvancedQueryRequest, AdvancedQueryResponse, AdvancedSubQuery, VerificationSummary
+from ..schemas import (
+    AdvancedQueryRequest,
+    AdvancedQueryResponse,
+    AdvancedSubQuery,
+    GraphRagTrace,
+    GraphRagTraceConfig,
+    GraphRagTraceDocument,
+    GraphRagTracePlanner,
+    GraphRagTracePlannerStep,
+    GraphRagTraceRetrieval,
+    GraphRagTraceRerank,
+    GraphRagTraceSubQueryTrace,
+    GraphRagTraceSummary,
+    GraphRagTraceSynthesis,
+    VerificationSummary,
+)
 from .embed import embed_texts
 from .generate import run_chat_completion
 from .graph import GraphStore, match_entities, plan_subqueries, traverse_graph
 from .observability import record_advanced_query
 from .runtime_config import get_runtime_config
+from .traces import store_trace
 from .pipeline import _apply_rerank
 from .retrieve import RetrievalHit, hybrid_retrieve, _l2_normalize
 from .session import ensure_session, get_session_index
@@ -204,6 +222,13 @@ def _summarize_subquery(
     return _summarize_subquery_fallback(sub_query, retrieved_meta, citations)
 
 
+def _short_snippet(text: str, limit: int = 160) -> str:
+    snippet = (text or "").strip().replace("\n", " ")
+    if len(snippet) <= limit:
+        return snippet
+    return snippet[: limit - 1].rstrip() + "…"
+
+
 def _collect_citations(subqueries: List[AdvancedSubQuery]) -> List[Dict[str, Any]]:
     dedup: Dict[str, Dict[str, Any]] = {}
     for sub in subqueries:
@@ -314,6 +339,7 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
 
     if not features.graph_enabled:
         raise ValueError("Advanced graph mode is disabled in this environment.")
+    request_id = uuid.uuid4().hex
     session_id = req.session_id
     query = req.query.strip()
     if not query:
@@ -351,12 +377,16 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
     if not subqueries:
         subqueries = [query]
     subqueries = subqueries[:max_subqueries]
+    planner_steps = [GraphRagTracePlannerStep(id=idx + 1, text=text) for idx, text in enumerate(subqueries)]
 
     sidx = get_session_index(session_id)
     if not sidx or not sidx.faiss_index:
         raise ValueError("Index metadata unavailable.")
 
     response_subqueries: List[AdvancedSubQuery] = []
+    trace_subqueries: List[GraphRagTraceSubQueryTrace] = []
+    trace_notes: List[str] = []
+    trace_enabled = features.graph_traces_enabled
 
     for sub_query in subqueries:
         hits, graph_paths, diagnostics = _prepare_retrieval(session_id, sub_query, max_hops=max_hops, answer_top_k=answer_top_k)
@@ -391,6 +421,54 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
             )
 
         summary, citations = _summarize_subquery(sub_query, retrieved_meta, model=model, temperature=summary_temperature)
+
+        if trace_enabled:
+            documents = [
+                GraphRagTraceDocument(
+                    doc_id=meta["doc_id"],
+                    chunk_index=meta["chunk_index"],
+                    rank=meta["rank"],
+                    snippet=_short_snippet(meta["text"]),
+                    dense_score=meta.get("dense_score"),
+                    lexical_score=meta.get("lexical_score"),
+                    fused_score=meta.get("fused_score"),
+                    rerank_score=meta.get("rerank_score"),
+                )
+                for meta in retrieved_meta
+            ]
+            retrieval_trace = GraphRagTraceRetrieval(
+                sub_query=sub_query,
+                documents=documents,
+                graph_paths=graph_paths,
+                metrics={
+                    "hops_used": diagnostics.hops_used,
+                    "graph_candidates": diagnostics.graph_candidates,
+                    "hybrid_candidates": diagnostics.hybrid_candidates,
+                },
+            )
+            rerank_trace = None
+            if rerank_scores:
+                rerank_trace = GraphRagTraceRerank(
+                    strategy=rerank_mode,
+                    latency_ms=diagnostics.rerank_latency_ms,
+                    top_documents=documents[: min(len(documents), answer_top_k)],
+                )
+            sub_warnings: List[str] = []
+            if not documents:
+                sub_warnings.append("No documents retrieved for this sub-query.")
+            if not citations:
+                sub_warnings.append("No citations generated for this sub-query.")
+            trace_subqueries.append(
+                GraphRagTraceSubQueryTrace(
+                    id=len(trace_subqueries) + 1,
+                    query=sub_query,
+                    retrieval=retrieval_trace,
+                    rerank=rerank_trace,
+                    summary=GraphRagTraceSummary(text=summary, citations=[cite["id"] for cite in citations]),
+                    warnings=sub_warnings,
+                )
+            )
+            trace_notes.extend(sub_warnings)
 
         response_subqueries.append(
             AdvancedSubQuery(
@@ -448,8 +526,40 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
         },
     )
 
+    trace_payload: GraphRagTrace | None = None
+    if trace_enabled:
+        if not settings.advanced_llm_enabled:
+            trace_notes.append("LLM summarization disabled; using heuristic summaries.")
+        trace_payload = GraphRagTrace(
+            request_id=request_id,
+            session_id=session_id,
+            query=query,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            config=GraphRagTraceConfig(
+                k=answer_top_k,
+                max_hops=max_hops,
+                temperature=temperature,
+                rerank_strategy=rerank_mode,
+                verification_mode=verification_mode,
+                model=model,
+                max_subqueries=max_subqueries,
+            ),
+            planner=GraphRagTracePlanner(sub_queries=planner_steps, notes=None),
+            subqueries=trace_subqueries,
+            verification=verification,
+            synthesis=GraphRagTraceSynthesis(
+                answer=final_answer,
+                citations=final_citations,
+                model=model,
+                notes=None,
+            ),
+            warnings=sorted({note for note in trace_notes if note}),
+        )
+        store_trace(trace_payload)
+
     return AdvancedQueryResponse(
         session_id=session_id,
+        request_id=request_id,
         query=query,
         planner={
             "subqueries": subqueries,
@@ -462,4 +572,5 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
         answer=final_answer,
         citations=final_citations,
         verification=verification,
+        trace=trace_payload,
     )
