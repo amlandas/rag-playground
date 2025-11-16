@@ -7,6 +7,8 @@ DEFAULT_LOCAL_ORIGINS: Tuple[str, ...] = (
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://rag-playground-web-908840126213.us-west1.run.app",
+    "https://rag-playground-web-fsx6dmftva-uw.a.run.app",
 )
 
 

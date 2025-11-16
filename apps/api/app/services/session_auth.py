@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import time
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -87,18 +88,30 @@ def _origin_is_local(origin: str) -> bool:
     return host.endswith(LOCAL_HOST_SUFFIXES)
 
 
+def _config_env() -> str:
+    return os.getenv("CONFIG_ENV", "local").strip().lower() or "local"
+
+
 def cookie_secure_flag() -> bool:
     origins = _parsed_origins()
     if not origins:
         return False
+    has_secure_candidate = False
     for origin in origins:
         parsed = urlparse(origin if "://" in origin else f"https://{origin}")
         if parsed.scheme != "https":
             continue
         if _origin_is_local(origin):
             continue
-        return True
-    return False
+        has_secure_candidate = True
+        break
+    if not has_secure_candidate:
+        return False
+    config_env = _config_env()
+    if config_env == "local" and not settings.ALLOW_ORIGINS:
+        # Fallback defaults include hosted origins; avoid forcing Secure locally unless explicitly configured.
+        return False
+    return True
 
 
 def cookie_samesite_policy() -> str:
