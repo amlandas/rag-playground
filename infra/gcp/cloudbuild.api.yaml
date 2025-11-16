@@ -21,7 +21,7 @@ steps:
             local key="$1"
             local value="$2"
             # Use custom delimiter (^|^) so values can contain commas safely
-            CMD_ARGS+=("--set-env-vars=^|^${key}=${value}")
+            CMD_ARGS+=("--set-env-vars=${key}=${value}")
           }
 
           set_env_with_default() {
