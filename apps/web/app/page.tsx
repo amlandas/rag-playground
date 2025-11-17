@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HealthBadge from "../components/HealthBadge";
+import DaisyUiSample from "../components/DaisyUiSample";
 
 export default function Landing() {
   return (
@@ -36,6 +37,7 @@ export default function Landing() {
         Privacy note: For now, this demo stores files only in an in-memory session and auto-cleans
         on inactivity. Avoid uploading sensitive data. We’ll provide sample docs in the next step.
       </p>
+      <DaisyUiSample />
     </main>
   );
 }

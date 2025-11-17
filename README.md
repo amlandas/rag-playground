@@ -73,6 +73,12 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 ```
 Open http://localhost:3000/playground and click **Use sample dataset → Build index → Ask “What is our PTO policy?”** to validate the end-to-end flow.
 
+## Frontend styling
+- The playground UI uses **Tailwind CSS** plus **[DaisyUI](https://daisyui.com/)** for prebuilt components.
+- Tailwind configuration lives in `apps/web/tailwind.config.ts` and now includes DaisyUI with the themes `light`, `dark`, `cupcake`, and `forest` enabled.
+- To change the active theme, set the `data-theme` attribute on the `<html>` or `<body>` element (e.g., `data-theme="forest"`).
+- PostCSS is configured via `apps/web/postcss.config.js` using the Tailwind and Autoprefixer plugins.
+
 ### File size limits
 - Current upload cap: **30MB per file**. Cloud Run enforces ~32MB request bodies, so anything larger will receive a `413 Request Entity Too Large` before the API can stream it.
 - The web UI now validates file sizes client-side and shows a clear message when a file exceeds 30MB instead of firing `/api/upload`.
