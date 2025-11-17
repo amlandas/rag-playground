@@ -5,9 +5,20 @@ import logging
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
+import uuid
 
 from ..config import settings
-from ..schemas import AdvancedQueryRequest, AdvancedQueryResponse, AdvancedSubQuery, VerificationSummary
+from ..schemas import (
+    AdvancedQueryRequest,
+    AdvancedQueryResponse,
+    AdvancedSubQuery,
+    GraphRagTrace,
+    GraphRagTracePlannerStep,
+    GraphRagTraceRetrievalHit,
+    GraphRagTraceSynthesisNote,
+    GraphRagTraceVerificationResult,
+    VerificationSummary,
+)
 from .embed import embed_texts
 from .generate import run_chat_completion
 from .graph import GraphStore, match_entities, plan_subqueries, traverse_graph
@@ -18,6 +29,27 @@ from .retrieve import RetrievalHit, hybrid_retrieve, _l2_normalize
 from .session import ensure_session, get_session_index
 
 logger = logging.getLogger(__name__)
+TRACE_MAX_HITS = 12
+
+
+def _short_snippet(text: str, limit: int = 200) -> str:
+    snippet = (text or "").replace("\n", " ").strip()
+    if len(snippet) <= limit:
+        return snippet
+    return snippet[: limit - 1].rstrip() + "…"
+
+
+def _map_verification_to_trace(summary: VerificationSummary | None) -> GraphRagTraceVerificationResult | None:
+    if not summary:
+        return None
+    verdict = summary.verdict.lower()
+    if verdict in {"supported", "fully-supported"}:
+        mapped = "pass"
+    elif verdict in {"partially-supported"}:
+        mapped = "weak"
+    else:
+        mapped = "fail"
+    return GraphRagTraceVerificationResult(verdict=mapped, reason=summary.notes)
 
 
 @dataclass
@@ -311,6 +343,7 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
     runtime_cfg = get_runtime_config()
     features = runtime_cfg.features
     graph_cfg = runtime_cfg.graph_rag
+    request_id = uuid.uuid4().hex
 
     if not features.graph_enabled:
         raise ValueError("Advanced graph mode is disabled in this environment.")
@@ -351,12 +384,18 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
     if not subqueries:
         subqueries = [query]
     subqueries = subqueries[:max_subqueries]
+    trace_planner_steps = [
+        GraphRagTracePlannerStep(subquery=text, hop=idx, notes=None) for idx, text in enumerate(subqueries)
+    ]
 
     sidx = get_session_index(session_id)
     if not sidx or not sidx.faiss_index:
         raise ValueError("Index metadata unavailable.")
 
     response_subqueries: List[AdvancedSubQuery] = []
+    trace_retrieval_hits: List[GraphRagTraceRetrievalHit] = []
+    trace_warnings: List[str] = []
+    trace_synthesis_notes: List[GraphRagTraceSynthesisNote] = []
 
     for sub_query in subqueries:
         hits, graph_paths, diagnostics = _prepare_retrieval(session_id, sub_query, max_hops=max_hops, answer_top_k=answer_top_k)
@@ -391,6 +430,22 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
             )
 
         summary, citations = _summarize_subquery(sub_query, retrieved_meta, model=model, temperature=summary_temperature)
+
+        if retrieved_meta:
+            if len(trace_retrieval_hits) < TRACE_MAX_HITS:
+                remaining = TRACE_MAX_HITS - len(trace_retrieval_hits)
+                for meta in retrieved_meta[:remaining]:
+                    trace_retrieval_hits.append(
+                        GraphRagTraceRetrievalHit(
+                            doc_id=meta["doc_id"],
+                            source=meta["doc_id"],
+                            score=meta.get("rerank_score") or meta.get("fused_score"),
+                            rank=meta["rank"],
+                            snippet=_short_snippet(meta["text"]),
+                        )
+                    )
+        else:
+            trace_warnings.append(f"No evidence retrieved for sub-query '{sub_query}'.")
 
         response_subqueries.append(
             AdvancedSubQuery(
@@ -448,6 +503,33 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
         },
     )
 
+    trace_verification = _map_verification_to_trace(verification)
+    trace_synthesis_notes.append(
+        GraphRagTraceSynthesisNote(
+            step="initial_answer",
+            notes=f"Combined {len(response_subqueries)} sub-queries with rerank='{rerank_mode}'.",
+        )
+    )
+    if verification:
+        trace_synthesis_notes.append(
+            GraphRagTraceSynthesisNote(
+                step="verification",
+                notes=f"Verification mode '{verification.mode}' produced verdict '{verification.verdict}'.",
+            )
+        )
+        if trace_verification and trace_verification.verdict != "pass":
+            trace_warnings.append("Verification indicated the answer may need review.")
+
+    trace_payload = GraphRagTrace(
+        request_id=request_id,
+        mode="graph_advanced",
+        planner_steps=trace_planner_steps,
+        retrieval_hits=trace_retrieval_hits,
+        verification=trace_verification,
+        synthesis_notes=trace_synthesis_notes,
+        warnings=trace_warnings,
+    )
+
     return AdvancedQueryResponse(
         session_id=session_id,
         query=query,
@@ -462,4 +544,5 @@ def run_advanced_query(req: AdvancedQueryRequest) -> AdvancedQueryResponse:
         answer=final_answer,
         citations=final_citations,
         verification=verification,
+        trace=trace_payload,
     )

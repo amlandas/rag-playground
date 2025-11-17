@@ -143,6 +143,40 @@ export type AdvancedVerificationSummary = {
   notes: string;
 };
 
+export type GraphRagTracePlannerStep = {
+  subquery: string;
+  hop: number;
+  notes?: string | null;
+};
+
+export type GraphRagTraceRetrievalHit = {
+  doc_id?: string | null;
+  source?: string | null;
+  score?: number | null;
+  rank?: number | null;
+  snippet?: string | null;
+};
+
+export type GraphRagTraceVerificationResult = {
+  verdict: string;
+  reason?: string | null;
+};
+
+export type GraphRagTraceSynthesisNote = {
+  step: string;
+  notes?: string | null;
+};
+
+export type GraphRagTrace = {
+  request_id: string;
+  mode: string;
+  planner_steps: GraphRagTracePlannerStep[];
+  retrieval_hits: GraphRagTraceRetrievalHit[];
+  verification?: GraphRagTraceVerificationResult | null;
+  synthesis_notes: GraphRagTraceSynthesisNote[];
+  warnings: string[];
+};
+
 export type AdvancedQueryResponse = {
   session_id: string;
   query: string;
@@ -151,4 +185,5 @@ export type AdvancedQueryResponse = {
   answer: string;
   citations: Array<Record<string, unknown>>;
   verification?: AdvancedVerificationSummary | null;
+  trace?: GraphRagTrace | null;
 };

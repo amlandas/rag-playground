@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AdvancedSettings from "../../components/AdvancedSettings";
 import FeedbackBar from "../../components/FeedbackBar";
+import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
 import HealthBadge from "../../components/HealthBadge";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
@@ -27,6 +28,7 @@ import type {
   AnswerMode,
   CompareProfile,
   ConfidenceLevel,
+  GraphRagTrace,
   HealthDetails,
   RetrievedChunk,
   RetrievedPrelude,
@@ -187,6 +189,8 @@ const [queryId, setQueryId] = useState<string | null>(null);
     verificationMode: "ragv" as "none" | "ragv" | "llm",
   });
   const [graphResult, setGraphResult] = useState<AdvancedQueryResponse | null>(null);
+  const [graphTrace, setGraphTrace] = useState<GraphRagTrace | null>(null);
+  const [showGraphTrace, setShowGraphTrace] = useState(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
@@ -448,6 +452,8 @@ const [queryId, setQueryId] = useState<string | null>(null);
     setAnswerComplete(false);
     setSources([]);
     setGraphResult(null);
+    setGraphTrace(null);
+    setShowGraphTrace(false);
     setError(null);
     const sanitizedRerank = graphSettings.rerank === "llm" && !LLM_RERANK_ALLOWED ? "ce" : graphSettings.rerank;
     const sanitizedVerification =
@@ -482,9 +488,12 @@ const [queryId, setQueryId] = useState<string | null>(null);
       );
       setSources(normalizedSources);
       setGraphResult(response);
+      setGraphTrace(response.trace ?? null);
+      setShowGraphTrace(false);
     } catch (err: any) {
       setError(friendlyError(err));
       setGraphResult(null);
+      setGraphTrace(null);
     } finally {
       setBusy("idle");
     }
@@ -1106,6 +1115,29 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
                 <div className="text-gray-700">{graphResult.verification.notes}</div>
               </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {mode === "graph" ? (
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowGraphTrace((prev) => !prev)}
+                disabled={!graphTrace}
+                className="rounded border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {showGraphTrace ? "Hide trace" : "Show trace"}
+              </button>
+              {graphTrace ? (
+                <span className="text-[11px] text-gray-500">Trace ID: {graphTrace.request_id.slice(0, 8)}…</span>
+              ) : (
+                <span className="text-[11px] text-gray-400">Trace unavailable for this run.</span>
+              )}
+            </div>
+            {showGraphTrace && graphTrace ? (
+              <GraphRagTraceViewer trace={graphTrace} />
             ) : null}
           </div>
         ) : null}
