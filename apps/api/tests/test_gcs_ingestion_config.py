@@ -54,8 +54,8 @@ def test_build_blob_path_sanitizes(monkeypatch):
         "get_gcs_ingestion_config",
         lambda: GcsIngestionConfig(enabled=False, bucket=None, prefix="uploads/", ttl_days=1),
     )
-    path = gcs_ingestion.build_blob_path(" session id ", "report final?.pdf")
-    assert path.startswith("uploads/session-id/")
+    path = gcs_ingestion.build_blob_path(" session id ", "DOC 123", "report final?.pdf")
+    assert path.startswith("uploads/session-id/doc-123/")
     assert path.endswith("report-final-.pdf")
 
 
@@ -66,7 +66,7 @@ def test_upload_requires_enabled(monkeypatch):
         lambda: GcsIngestionConfig(enabled=False, bucket=None, prefix="uploads/", ttl_days=1),
     )
     with pytest.raises(RuntimeError):
-        gcs_ingestion.upload_file_for_session("s", "f.txt", b"data")
+        gcs_ingestion.upload_file_for_session("s", "doc", "f.txt", b"data")
 
 
 def test_upload_uses_storage_client(monkeypatch):
@@ -96,8 +96,37 @@ def test_upload_uses_storage_client(monkeypatch):
             return DummyBucket(name)
 
     monkeypatch.setattr(gcs_ingestion, "storage", types.SimpleNamespace(Client=lambda: DummyClient()))
-    result = gcs_ingestion.upload_file_for_session("sess", "file.txt", b"hello")
+    result = gcs_ingestion.upload_file_for_session("sess", "doc", "file.txt", b"hello")
     assert result.startswith("uploads/")
     assert uploaded["bucket"] == "bucket"
     assert uploaded["path"] == result
     assert uploaded["data"] == b"hello"
+
+
+def test_download_blob_bytes(monkeypatch):
+    config_obj = GcsIngestionConfig(enabled=True, bucket="bucket", prefix="uploads/", ttl_days=1)
+    monkeypatch.setattr(gcs_ingestion, "get_gcs_ingestion_config", lambda: config_obj)
+
+    class DummyBlob:
+        def __init__(self, name):
+            self.name = name
+
+        def download_as_bytes(self):
+            return b"payload"
+
+    class DummyBucket:
+        def __init__(self, name):
+            self.name = name
+
+        def blob(self, path):
+            assert path == "uploads/session/doc/file.txt"
+            return DummyBlob(path)
+
+    class DummyClient:
+        def bucket(self, name):
+            assert name == "bucket"
+            return DummyBucket(name)
+
+    monkeypatch.setattr(gcs_ingestion, "storage", types.SimpleNamespace(Client=lambda: DummyClient()))
+    result = gcs_ingestion.download_blob_bytes("uploads/session/doc/file.txt")
+    assert result == b"payload"

@@ -28,29 +28,48 @@ def get_gcs_ingestion_config() -> GcsIngestionConfig:
 
 
 def _sanitize_slug(value: str, fallback: str) -> str:
-    cleaned = value.strip()
+    cleaned = value.strip().lower()
     cleaned = cleaned.replace(" ", "-")
     cleaned = _SAFE_CHARS.sub("-", cleaned)
     cleaned = cleaned.strip("-")
     return cleaned or fallback
 
 
-def build_blob_path(session_id: str, filename: str) -> str:
+def build_session_prefix(session_id: str) -> str:
+    """Return the prefix used for a specific session. TTL cleanup will delete entire prefixes."""
     config = get_gcs_ingestion_config()
     session_slug = _sanitize_slug(session_id, "session")
+    return f"{config.prefix}{session_slug}/"
+
+
+def build_blob_path(session_id: str, doc_id: str, filename: str) -> str:
+    prefix = build_session_prefix(session_id)
+    doc_slug = _sanitize_slug(doc_id, "doc")
     name_slug = _sanitize_slug(filename or "file", "file")
-    return f"{config.prefix}{session_slug}/{name_slug}"
+    return f"{prefix}{doc_slug}/{name_slug}"
 
 
-def upload_file_for_session(session_id: str, filename: str, data: bytes) -> str:
+def upload_file_for_session(session_id: str, doc_id: str, filename: str, data: bytes) -> str:
     config = get_gcs_ingestion_config()
     if not config.enabled:
         raise RuntimeError("GCS ingestion is disabled.")
     if not config.bucket:
         raise RuntimeError("GCS ingestion bucket is not configured.")
-    blob_path = build_blob_path(session_id, filename)
+    blob_path = build_blob_path(session_id, doc_id, filename or "upload")
     client = storage.Client()
     bucket = client.bucket(config.bucket)
     blob = bucket.blob(blob_path)
     blob.upload_from_string(data)
     return blob_path
+
+
+def download_blob_bytes(object_path: str) -> bytes:
+    config = get_gcs_ingestion_config()
+    if not config.enabled:
+        raise RuntimeError("GCS ingestion is disabled.")
+    if not config.bucket:
+        raise RuntimeError("GCS ingestion bucket is not configured.")
+    client = storage.Client()
+    bucket = client.bucket(config.bucket)
+    blob = bucket.blob(object_path)
+    return blob.download_as_bytes()
