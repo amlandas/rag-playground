@@ -132,6 +132,9 @@ export default function Playground() {
   const [refreshingSession, setRefreshingSession] = useState(false);
   const [metricsSummary, setMetricsSummary] = useState<AdminMetricsSummary | null>(null);
   const [healthDetails, setHealthDetails] = useState<HealthDetails | null>(null);
+  const [gcsIngestionEffective, setGcsIngestionEffective] = useState(
+    (process.env.NEXT_PUBLIC_GCS_INGESTION_ENABLED ?? "false").toLowerCase() === "true",
+  );
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
 
@@ -255,6 +258,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
       const [metrics, health] = await Promise.all([fetchMetricsSummary(), fetchHealthDetails()]);
       setMetricsSummary(metrics);
       setHealthDetails(health);
+      if (typeof health.gcs_ingestion_enabled === "boolean") {
+        setGcsIngestionEffective(health.gcs_ingestion_enabled);
+      }
       setAdminError(null);
     } catch (err) {
       console.error("[admin] metrics refresh failed", err);
@@ -607,6 +613,17 @@ const [queryId, setQueryId] = useState<string | null>(null);
   useEffect(() => {
     if (authEnabled && user?.is_admin) {
       void loadAdminData();
+    } else if (!authEnabled) {
+      void fetchHealthDetails()
+        .then((details) => {
+          setHealthDetails(details);
+          if (typeof details.gcs_ingestion_enabled === "boolean") {
+            setGcsIngestionEffective(details.gcs_ingestion_enabled);
+          }
+        })
+        .catch(() => {
+          /* no-op */
+        });
     } else {
       setMetricsSummary(null);
       setHealthDetails(null);
@@ -693,6 +710,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
           <div>
             <dt className="font-semibold text-gray-600">Base URL</dt>
             <dd className="break-words">{apiBaseUrl}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-gray-600">Storage backend</dt>
+            <dd>{gcsIngestionEffective ? "Cloud-backed (GCS)" : "In-memory"}</dd>
           </div>
           <div>
             <dt className="font-semibold text-gray-600">Connectivity</dt>

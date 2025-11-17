@@ -110,6 +110,7 @@ export type HealthDetails = {
   llm_available: boolean;
   answer_mode_default: string;
   version?: string;
+  gcs_ingestion_enabled?: boolean;
 };
 
 export type AdvancedRetrievedMeta = {
