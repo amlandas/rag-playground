@@ -9,6 +9,7 @@ import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
 import HealthBadge from "../../components/HealthBadge";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
+import UploadLimitHint from "../../components/UploadLimitHint";
 import { useAuth } from "../../components/AuthProvider";
 import { API_BASE } from "../../lib/api";
 import {
@@ -22,6 +23,7 @@ import {
   uploadFiles,
   type AdvancedQueryPayload,
 } from "../../lib/rag-api";
+import { formatBytesInMB, UPLOAD_MAX_FILE_BYTES, UPLOAD_MAX_FILE_MB } from "../../lib/uploadLimits";
 import type {
   AdminMetricsSummary,
   AdvancedQueryResponse,
@@ -344,7 +346,32 @@ const [queryId, setQueryId] = useState<string | null>(null);
     setQueryId(null);
   }
 
+  function validateFileSizes(files: File[]): boolean {
+    const oversized = files.filter((file) => file.size > UPLOAD_MAX_FILE_BYTES);
+    if (!oversized.length) {
+      return true;
+    }
+    const description = oversized
+      .map((file) => `"${file.name}" (${formatBytesInMB(file.size)}MB)`)
+      .join(", ");
+    setError(
+      `${description} exceed the current ${UPLOAD_MAX_FILE_MB}MB per-file limit. Please upload smaller files. ` +
+        "100MB+ uploads are coming soon via direct-to-GCS support.",
+    );
+    return false;
+  }
+
   function handleFilesSelected(files: File[]) {
+    if (!validateFileSizes(files)) {
+      setFilesChosen([]);
+      setSessionId(null);
+      setIndexed(false);
+      setAnswer("");
+      setConfidence(null);
+      setSources([]);
+      setQueryId(null);
+      return;
+    }
     setFilesChosen(files);
     setSessionId(null);
     setIndexed(false);
@@ -362,6 +389,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
       return;
     }
     if (authGateActive) return;
+    if (!validateFileSizes(filesChosen)) {
+      return;
+    }
     setBusy("uploading");
     setError(null);
     try {
@@ -988,6 +1018,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
             onFilesSelected={handleFilesSelected}
             onUseSamples={useSamples}
           />
+          <UploadLimitHint />
           <div className="mt-3 space-y-1">
             {filesChosen.length ? (
               filesChosen.map((file, index) => (
