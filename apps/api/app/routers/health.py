@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from ..config import settings
 from ..services.cors import cors_config_summary
 from ..services.reranker import ce_available, llm_available, effective_strategy
+from ..services.gcs_ingestion import get_gcs_ingestion_config
 from ..services.runtime_config import (
     get_runtime_config,
     get_runtime_config_metadata,
@@ -26,6 +27,7 @@ async def health_details():
     graph_conf = runtime_cfg.graph_rag
     llm_capable = settings.advanced_llm_enabled
     cors_origins, cors_source = cors_config_summary(settings.ALLOW_ORIGINS)
+    gcs_cfg = get_gcs_ingestion_config()
     return {
         "status": "ok",
         "rerank_strategy_effective": strategy_effective,
@@ -50,5 +52,11 @@ async def health_details():
         "config_env": runtime_meta["config_env"],
         "cors_allowed_origins": cors_origins,
         "cors_config_source": cors_source,
+        "gcs_ingestion": {
+            "enabled": gcs_cfg.enabled,
+            "bucket": gcs_cfg.bucket,
+            "prefix": gcs_cfg.prefix,
+            "ttl_days": gcs_cfg.ttl_days,
+        },
         "version": "local-dev",
     }

@@ -141,6 +141,22 @@ class Settings(BaseSettings):
         default=0.2,
         validation_alias=AliasChoices("ANSWER_TEMP", "ANSWER__TEMP", "RAG_ANSWER_TEMP"),
     )
+    GCS_INGESTION_ENABLED: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("GCS_INGESTION_ENABLED", "RAG_GCS_INGESTION_ENABLED"),
+    )
+    GCS_INGESTION_BUCKET: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GCS_INGESTION_BUCKET", "RAG_GCS_INGESTION_BUCKET"),
+    )
+    GCS_INGESTION_PREFIX: str = Field(
+        default="uploads/",
+        validation_alias=AliasChoices("GCS_INGESTION_PREFIX", "RAG_GCS_INGESTION_PREFIX"),
+    )
+    GCS_INGESTION_TTL_DAYS: int = Field(
+        default=1,
+        validation_alias=AliasChoices("GCS_INGESTION_TTL_DAYS", "RAG_GCS_INGESTION_TTL_DAYS"),
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -198,6 +214,18 @@ class Settings(BaseSettings):
                 raise ValueError("GOOGLE_CLIENT_ID is required when GOOGLE_AUTH_ENABLED=true")
             if not os.getenv("SESSION_SECRET"):
                 raise ValueError("SESSION_SECRET environment variable is required when GOOGLE_AUTH_ENABLED=true")
+        prefix = (self.GCS_INGESTION_PREFIX or "uploads/").strip()
+        prefix = prefix.lstrip("/")
+        if prefix and not prefix.endswith("/"):
+            prefix = f"{prefix}/"
+        if not prefix:
+            prefix = "uploads/"
+        object.__setattr__(self, "GCS_INGESTION_PREFIX", prefix)
+        if self.GCS_INGESTION_ENABLED:
+            if not self.GCS_INGESTION_BUCKET:
+                raise ValueError("GCS_INGESTION_BUCKET is required when GCS_INGESTION_ENABLED=true")
+            if self.GCS_INGESTION_TTL_DAYS <= 0:
+                raise ValueError("GCS_INGESTION_TTL_DAYS must be greater than zero")
         return self
 
     @property
