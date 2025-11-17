@@ -1,13 +1,14 @@
 type EnvLike = Record<string, string | undefined> | NodeJS.ProcessEnv;
 
-const FALLBACK_API_BASE_URL = "https://rag-playground-api-908840126213.us-west1.run.app";
+const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:8000";
 
 export function resolveApiBase(env: EnvLike = process.env): string {
   const cleaned = env?.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (!cleaned) {
-    return FALLBACK_API_BASE_URL;
+    return DEFAULT_LOCAL_API_BASE_URL;
   }
-  return cleaned.replace(/\/$/, "") || FALLBACK_API_BASE_URL;
+  const normalized = cleaned.replace(/\/$/, "");
+  return normalized || DEFAULT_LOCAL_API_BASE_URL;
 }
 
 const API_BASE_URL = resolveApiBase();
