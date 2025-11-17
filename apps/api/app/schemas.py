@@ -115,6 +115,40 @@ class VerificationSummary(BaseModel):
     notes: str
 
 
+class GraphRagTracePlannerStep(BaseModel):
+    subquery: str
+    hop: int
+    notes: Optional[str] = None
+
+
+class GraphRagTraceRetrievalHit(BaseModel):
+    doc_id: Optional[str] = None
+    source: Optional[str] = None
+    score: Optional[float] = None
+    rank: Optional[int] = None
+    snippet: Optional[str] = None
+
+
+class GraphRagTraceVerificationResult(BaseModel):
+    verdict: str
+    reason: Optional[str] = None
+
+
+class GraphRagTraceSynthesisNote(BaseModel):
+    step: str
+    notes: Optional[str] = None
+
+
+class GraphRagTrace(BaseModel):
+    request_id: str
+    mode: str
+    planner_steps: List[GraphRagTracePlannerStep] = []
+    retrieval_hits: List[GraphRagTraceRetrievalHit] = []
+    verification: Optional[GraphRagTraceVerificationResult] = None
+    synthesis_notes: List[GraphRagTraceSynthesisNote] = []
+    warnings: List[str] = []
+
+
 class AdvancedQueryResponse(BaseModel):
     session_id: str
     query: str
@@ -123,3 +157,4 @@ class AdvancedQueryResponse(BaseModel):
     answer: str
     citations: List[Dict[str, Any]]
     verification: Optional[VerificationSummary] = None
+    trace: Optional[GraphRagTrace] = None
