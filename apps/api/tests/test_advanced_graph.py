@@ -77,6 +77,10 @@ def test_advanced_query_flow(monkeypatch):
     assert resp.status_code == 200
     data = resp.json()
     assert data["session_id"] == session_id
+    assert data["trace"] is not None
+    assert data["trace"]["request_id"]
+    assert data["trace"]["planner_steps"]
+    assert data["trace"]["retrieval_hits"]
     assert data["answer"]
     assert data["verification"]
     assert data["verification"]["mode"] == "ragv"
@@ -233,3 +237,29 @@ def test_advanced_query_no_verification_still_llm(monkeypatch):
     payload = resp.json()
     assert payload["answer"] == "Synthesis output"
     assert payload["verification"] is None
+    assert payload["trace"]
+
+
+def test_advanced_trace_warns_when_no_evidence(monkeypatch):
+    _disable_auth(monkeypatch)
+    _set_runtime_config(monkeypatch, graph_enabled=True, max_graph_hops=1)
+    session_id = _upload_and_index(monkeypatch)
+
+    def fake_prepare(session_id, query, *, max_hops, answer_top_k):
+        diagnostics = advanced_service.SubQueryDiagnostics([], 0, 0, 0, 0, 0.0)
+        return [], [], diagnostics
+
+    monkeypatch.setattr(advanced_service, "_prepare_retrieval", fake_prepare)
+    resp = client.post(
+        "/api/query/advanced",
+        json={
+            "session_id": session_id,
+            "query": "Trace warnings test",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    trace = data["trace"]
+    assert trace is not None
+    assert trace["retrieval_hits"] == []
+    assert trace["warnings"]
