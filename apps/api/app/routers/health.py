@@ -7,6 +7,7 @@ from ..services.runtime_config import (
     get_runtime_config,
     get_runtime_config_metadata,
     google_auth_enabled_effective,
+    graph_traces_enabled_effective,
 )
 
 router = APIRouter()
@@ -37,6 +38,7 @@ async def health_details():
         "google_auth_effective": google_auth_enabled_effective(),
         "graph_enabled": features.graph_enabled,
         "advanced_graph_enabled": features.graph_enabled,
+        "graph_rag_traces_enabled": graph_traces_enabled_effective(),
         "advanced_llm_enabled": llm_capable,
         "llm_rerank_enabled": features.llm_rerank_enabled and llm_capable,
         "fact_check_llm_enabled": features.fact_check_llm_enabled and llm_capable,

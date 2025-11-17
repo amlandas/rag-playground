@@ -37,6 +37,7 @@ def _set_runtime_config(monkeypatch, **overrides) -> RuntimeConfig:
         "llm_rerank_enabled": overrides.pop("llm_rerank_enabled", False),
         "fact_check_llm_enabled": overrides.pop("fact_check_llm_enabled", False),
         "fact_check_strict": overrides.pop("fact_check_strict", False),
+        "graph_traces_enabled": overrides.pop("graph_traces_enabled", True),
     }
     graph_defaults = {
         "max_graph_hops": overrides.pop("max_graph_hops", 2),
@@ -77,10 +78,14 @@ def test_advanced_query_flow(monkeypatch):
     assert resp.status_code == 200
     data = resp.json()
     assert data["session_id"] == session_id
+    assert data["request_id"]
     assert data["answer"]
     assert data["verification"]
     assert data["verification"]["mode"] == "ragv"
     assert data["subqueries"]
+    assert data["trace"]
+    assert data["trace"]["request_id"] == data["request_id"]
+    assert data["trace"]["subqueries"]
     first = data["subqueries"][0]
     assert "retrieved_meta" in first
     assert "graph_paths" in first
@@ -233,3 +238,27 @@ def test_advanced_query_no_verification_still_llm(monkeypatch):
     payload = resp.json()
     assert payload["answer"] == "Synthesis output"
     assert payload["verification"] is None
+
+
+def test_trace_endpoint_returns_latest_trace(monkeypatch):
+    _disable_auth(monkeypatch)
+    _set_runtime_config(monkeypatch, graph_enabled=True, graph_traces_enabled=True)
+    session_id = _upload_and_index(monkeypatch)
+
+    resp = client.post(
+        "/api/query/advanced",
+        json={
+            "session_id": session_id,
+            "query": "Trace capture test?",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    request_id = data["request_id"]
+
+    trace_resp = client.get(f"/api/query/advanced/trace/{session_id}/{request_id}")
+    assert trace_resp.status_code == 200
+    trace = trace_resp.json()
+    assert trace["request_id"] == request_id
+    assert trace["session_id"] == session_id
+    assert trace["subqueries"]

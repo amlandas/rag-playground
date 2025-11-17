@@ -43,6 +43,11 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 - **UI**: when `NEXT_PUBLIC_GRAPH_RAG_ENABLED=true`, the playground shows a “Graph RAG (multi-stage)” mode with controls for k, hops, rerank (CE/LLM), verification, and live sub-query diagnostics.
 - Graph data lives alongside the existing per-session index, so no additional infrastructure is required. Re-indexing a session rebuilds the graph idempotently.
 
+### Graph RAG Traces
+- Each advanced Graph RAG query now captures a structured trace detailing the planner output, retrieval diagnostics, rerank decisions, per-sub-query summaries, verification notes, and final synthesis metadata. The API response adds a `request_id` plus a `trace` payload, and you can re-fetch the trace later via `GET /api/query/advanced/trace/{session_id}/{request_id}` for debugging or demos.
+- A new runtime flag `features.graph_traces_enabled` (Firestore or `GRAPH_TRACES_ENABLED` env var) gates trace capture. It defaults to `true` and surfaces via `/api/health/details` as `graph_rag_traces_enabled` so the web app can toggle UI affordances without redeploying.
+- In the playground’s Graph RAG mode a **Show trace** toggle reveals a timeline viewer summarizing planner steps, retrieval hits, rerank stats, verification verdicts, and the synthesized answer. The viewer also exposes a **Download JSON** button to grab the raw trace for deep dives.
+
 ## Prerequisites
 - Python 3.11 with [Poetry](https://python-poetry.org/)
 - Node.js 18+ with [pnpm](https://pnpm.io/) v8+

@@ -18,16 +18,11 @@ assert.equal(
   "values should be trimmed",
 );
 
-assert.equal(
-  resolveApiBase(customEnv("")),
-  "https://rag-playground-api-908840126213.us-west1.run.app",
-  "empty values fall back to the Cloud Run API URL",
-);
+assert.equal(resolveApiBase(customEnv("")), "http://localhost:8000", "empty values fall back to localhost:8000");
 
 assert.equal(
   resolveApiBase(),
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-    "https://rag-playground-api-908840126213.us-west1.run.app",
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000",
   "default env lookup should match runtime behavior",
 );
 

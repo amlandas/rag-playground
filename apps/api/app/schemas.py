@@ -115,11 +115,93 @@ class VerificationSummary(BaseModel):
     notes: str
 
 
+class GraphRagTraceConfig(BaseModel):
+    k: int
+    max_hops: int
+    temperature: float
+    rerank_strategy: str
+    verification_mode: str
+    model: str
+    max_subqueries: int
+
+
+class GraphRagTracePlannerStep(BaseModel):
+    id: int
+    text: str
+    stage: str = "sub-query"
+    tags: List[str] = []
+
+
+class GraphRagTracePlanner(BaseModel):
+    sub_queries: List[GraphRagTracePlannerStep]
+    notes: Optional[str] = None
+
+
+class GraphRagTraceDocument(BaseModel):
+    doc_id: str
+    chunk_index: int
+    rank: int
+    snippet: Optional[str] = None
+    dense_score: Optional[float] = None
+    lexical_score: Optional[float] = None
+    fused_score: Optional[float] = None
+    rerank_score: Optional[float] = None
+
+
+class GraphRagTraceRetrieval(BaseModel):
+    sub_query: str
+    documents: List[GraphRagTraceDocument]
+    graph_paths: List[Dict[str, Any]]
+    metrics: Dict[str, float | int]
+
+
+class GraphRagTraceRerank(BaseModel):
+    strategy: str
+    latency_ms: float
+    top_documents: List[GraphRagTraceDocument]
+
+
+class GraphRagTraceSummary(BaseModel):
+    text: str
+    citations: List[str]
+
+
+class GraphRagTraceSubQueryTrace(BaseModel):
+    id: int
+    query: str
+    retrieval: GraphRagTraceRetrieval
+    rerank: Optional[GraphRagTraceRerank] = None
+    summary: GraphRagTraceSummary
+    warnings: List[str] = []
+
+
+class GraphRagTraceSynthesis(BaseModel):
+    answer: str
+    citations: List[Dict[str, Any]]
+    model: str
+    notes: Optional[str] = None
+
+
+class GraphRagTrace(BaseModel):
+    request_id: str
+    session_id: str
+    query: str
+    timestamp: str
+    config: GraphRagTraceConfig
+    planner: GraphRagTracePlanner
+    subqueries: List[GraphRagTraceSubQueryTrace]
+    verification: Optional[VerificationSummary] = None
+    synthesis: GraphRagTraceSynthesis
+    warnings: List[str] = []
+
+
 class AdvancedQueryResponse(BaseModel):
     session_id: str
+    request_id: str
     query: str
     planner: Dict[str, Any]
     subqueries: List[AdvancedSubQuery]
     answer: str
     citations: List[Dict[str, Any]]
     verification: Optional[VerificationSummary] = None
+    trace: Optional[GraphRagTrace] = None

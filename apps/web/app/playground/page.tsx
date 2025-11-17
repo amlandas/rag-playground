@@ -9,11 +9,13 @@ import HealthBadge from "../../components/HealthBadge";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
 import { useAuth } from "../../components/AuthProvider";
+import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
 import { API_BASE } from "../../lib/api";
 import {
   answerFromSnippetsSSE,
   buildIndex,
   compareRetrieval,
+  fetchGraphTrace,
   fetchHealthDetails,
   fetchMetricsSummary,
   queryAdvancedGraph,
@@ -27,6 +29,7 @@ import type {
   AnswerMode,
   CompareProfile,
   ConfidenceLevel,
+  GraphRagTrace,
   HealthDetails,
   RetrievedChunk,
   RetrievedPrelude,
@@ -184,6 +187,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
     verificationMode: "ragv" as "none" | "ragv" | "llm",
   });
   const [graphResult, setGraphResult] = useState<AdvancedQueryResponse | null>(null);
+  const [graphTrace, setGraphTrace] = useState<GraphRagTrace | null>(null);
+  const [graphTraceVisible, setGraphTraceVisible] = useState(false);
+  const [graphTraceLoading, setGraphTraceLoading] = useState(false);
+  const [graphTraceError, setGraphTraceError] = useState<string | null>(null);
+  const tracesHealthy = healthDetails?.graph_rag_traces_enabled ?? true;
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
@@ -443,6 +451,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
     setSources([]);
     setGraphResult(null);
     setError(null);
+    setGraphTrace(null);
+    setGraphTraceVisible(false);
+    setGraphTraceError(null);
     const sanitizedRerank = graphSettings.rerank === "llm" && !LLM_RERANK_ALLOWED ? "ce" : graphSettings.rerank;
     const sanitizedVerification =
       graphSettings.verificationMode === "llm" && !FACT_CHECK_LLM_ALLOWED
@@ -476,6 +487,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
       );
       setSources(normalizedSources);
       setGraphResult(response);
+      setGraphTrace(response.trace ?? null);
     } catch (err: any) {
       setError(friendlyError(err));
       setGraphResult(null);
@@ -494,6 +506,37 @@ const [queryId, setQueryId] = useState<string | null>(null);
     graphSettings.verificationMode,
     query,
   ]);
+
+  const ensureGraphTrace = useCallback(async () => {
+    if (!graphResult || !graphResult.request_id || !sessionId) {
+      return;
+    }
+    if (graphTrace) {
+      return;
+    }
+    if (graphResult.trace) {
+      setGraphTrace(graphResult.trace);
+      return;
+    }
+    setGraphTraceLoading(true);
+    try {
+      const remoteTrace = await fetchGraphTrace(sessionId, graphResult.request_id);
+      setGraphTrace(remoteTrace);
+      setGraphTraceError(null);
+    } catch (err: any) {
+      setGraphTraceError(friendlyError(err));
+    } finally {
+      setGraphTraceLoading(false);
+    }
+  }, [graphResult, graphTrace, sessionId]);
+
+  const handleToggleTrace = useCallback(async () => {
+    if (!graphResult) return;
+    if (!graphTraceVisible) {
+      await ensureGraphTrace();
+    }
+    setGraphTraceVisible((prev) => !prev);
+  }, [graphResult, graphTraceVisible, ensureGraphTrace]);
 
   async function doCompare() {
     if (!sessionId) return;
@@ -1086,6 +1129,46 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 <div className="text-gray-700">{graphResult.verification.notes}</div>
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {mode === "graph" && tracesHealthy ? (
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleToggleTrace();
+                  }}
+                  disabled={!graphResult || graphTraceLoading}
+                  className="rounded border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {graphTraceVisible ? "Hide trace" : "Show trace"}
+                </button>
+                {graphTraceLoading ? <LoadingBadge label="Loading trace" /> : null}
+              </div>
+              {graphResult?.request_id ? (
+                <span className="text-[11px] text-gray-500">Request {graphResult.request_id.slice(0, 8)}…</span>
+              ) : null}
+            </div>
+            {graphTraceError ? (
+              <div className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{graphTraceError}</div>
+            ) : null}
+            {graphTraceVisible ? (
+              graphTrace ? (
+                <GraphRagTraceViewer trace={graphTrace} />
+              ) : (
+                <div className="rounded border border-gray-200 bg-white p-3 text-xs text-gray-600">
+                  {graphTraceLoading ? "Loading trace…" : "Trace not available for this query."}
+                </div>
+              )
+            ) : null}
+          </div>
+        ) : null}
+        {mode === "graph" && !tracesHealthy ? (
+          <div className="mt-3 rounded border border-yellow-200 bg-yellow-50 p-2 text-xs text-yellow-800">
+            Graph RAG traces are disabled in this environment.
           </div>
         ) : null}
 

@@ -25,6 +25,7 @@ class FeatureFlags(BaseModel):
     llm_rerank_enabled: bool = False
     fact_check_llm_enabled: bool = False
     fact_check_strict: bool = False
+    graph_traces_enabled: bool = True
 
 
 class RuntimeConfig(BaseModel):
@@ -49,6 +50,7 @@ _FEATURE_FIELDS = (
     "llm_rerank_enabled",
     "fact_check_llm_enabled",
     "fact_check_strict",
+    "graph_traces_enabled",
 )
 _GRAPH_FIELDS = (
     "max_graph_hops",
@@ -56,6 +58,7 @@ _GRAPH_FIELDS = (
     "advanced_default_k",
     "advanced_default_temperature",
 )
+_OPTIONAL_FEATURE_FIELDS = {"graph_traces_enabled"}
 
 
 def _env_bool(names: Tuple[str, ...], default: bool) -> bool:
@@ -100,6 +103,7 @@ def _load_env_config(config_env: str) -> RuntimeConfig:
         llm_rerank_enabled=_env_bool(("LLM_RERANK_ENABLED", "RAG_LLM_RERANK_ENABLED"), False),
         fact_check_llm_enabled=_env_bool(("FACT_CHECK_LLM_ENABLED", "RAG_FACT_CHECK_LLM_ENABLED"), False),
         fact_check_strict=_env_bool(("FACT_CHECK_STRICT", "RAG_FACT_CHECK_STRICT"), False),
+        graph_traces_enabled=_env_bool(("GRAPH_TRACES_ENABLED", "RAG_GRAPH_TRACES_ENABLED"), True),
     )
     graph_config = GraphRagConfig(
         max_graph_hops=_env_int("MAX_GRAPH_HOPS", 2),
@@ -142,7 +146,7 @@ def _detect_missing_fields(doc: Dict[str, Any]) -> List[str]:
     missing: List[str] = []
     features = doc.get("features") or {}
     for field in _FEATURE_FIELDS:
-        if features.get(field) is None:
+        if features.get(field) is None and field not in _OPTIONAL_FEATURE_FIELDS:
             missing.append(f"features.{field}")
     graph = doc.get("graph_rag") or {}
     for field in _GRAPH_FIELDS:
@@ -269,6 +273,10 @@ def fact_check_llm_enabled_effective() -> bool:
 
 def fact_check_strict_effective() -> bool:
     return get_runtime_config().features.fact_check_strict
+
+
+def graph_traces_enabled_effective() -> bool:
+    return get_runtime_config().features.graph_traces_enabled
 
 
 def max_graph_hops_effective() -> int:

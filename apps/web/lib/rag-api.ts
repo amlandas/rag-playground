@@ -8,6 +8,7 @@ import type {
   AuthUser,
   CompareRequest,
   CompareResult,
+  GraphRagTrace,
   HealthDetails,
   IndexResponse,
   MetricsResponse,
@@ -230,4 +231,16 @@ export async function queryAdvancedGraph(body: AdvancedQueryPayload): Promise<Ad
     throw new Error(await res.text());
   }
   return (await res.json()) as AdvancedQueryResponse;
+}
+
+export async function fetchGraphTrace(sessionId: string, requestId: string): Promise<GraphRagTrace> {
+  const res = await fetch(`${getApiBaseUrl()}/api/query/advanced/trace/${sessionId}/${requestId}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return (await res.json()) as GraphRagTrace;
 }
