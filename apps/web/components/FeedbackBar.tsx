@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { sendFeedback } from "../lib/rag-api";
 
 export default function FeedbackBar({ queryId }: { queryId: string | null }) {
@@ -10,7 +10,14 @@ export default function FeedbackBar({ queryId }: { queryId: string | null }) {
 
   if (!queryId) return null;
   if (done) {
-    return <div className="text-xs text-green-700">Thanks for the feedback!</div>;
+    return (
+      <div className="badge badge-success badge-outline text-xs">
+        <span role="img" aria-hidden="true">
+          ✅
+        </span>{" "}
+        Thanks for the feedback!
+      </div>
+    );
   }
 
   async function submit(rating: -1 | 1) {
@@ -31,22 +38,28 @@ export default function FeedbackBar({ queryId }: { queryId: string | null }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        className="rounded border px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
-        disabled={!!sending}
-        onClick={() => submit(1)}
-      >
-        👍 Helpful
-      </button>
-      <button
-        className="rounded border px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
-        disabled={!!sending}
-        onClick={() => submit(-1)}
-      >
-        👎 Not helpful
-      </button>
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="join">
+        <button
+          className="btn btn-xs join-item btn-ghost"
+          disabled={!!sending}
+          onClick={() => submit(1)}
+        >
+          👍 Helpful
+        </button>
+        <button
+          className="btn btn-xs join-item btn-ghost"
+          disabled={!!sending}
+          onClick={() => submit(-1)}
+        >
+          👎 Not helpful
+        </button>
+      </div>
+      {error ? (
+        <div className="alert alert-error py-1 text-xs">
+          <span>{error}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

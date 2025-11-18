@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
 
 export default function HealthBadge() {
@@ -28,15 +28,16 @@ export default function HealthBadge() {
     };
   }, []);
 
-  const color = ok === null ? "bg-gray-300" : ok ? "bg-green-500" : "bg-red-500";
+  const badgeClass = ok === null ? "badge-ghost" : ok ? "badge-success" : "badge-error";
+  const statusLabel =
+    ok === null ? "Checking API…" : ok ? "API healthy" : "API error";
 
   return (
-    <div className="inline-flex items-center gap-2 text-sm">
-      <span className={`inline-block h-2.5 w-2.5 rounded-full ${color}`} />
-      <span className="font-medium">
-        {ok === null ? "Checking API…" : ok ? "API: healthy" : "API: error"}
-      </span>
-      {!ok && error ? <span className="text-gray-500">({error})</span> : null}
+    <div className="tooltip tooltip-bottom" data-tip={error ?? "API connectivity check"}>
+      <div className="badge badge-outline gap-2 text-xs font-semibold text-base-content">
+        <span className={`badge ${badgeClass} badge-xs`} />
+        {statusLabel}
+      </div>
     </div>
   );
 }

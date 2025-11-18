@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { fetchMetrics } from "../lib/rag-api";
 import type { MetricsResponse } from "../lib/types";
 
@@ -29,66 +29,105 @@ export default function MetricsDrawer() {
     }
   }, [open]);
 
+  const drawerId = useId();
+
   return (
-    <div className="relative">
-      <button
-        className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        {open ? "Hide metrics" : "Show metrics"}
-      </button>
-      {open ? (
-        <div className="absolute right-0 z-10 mt-2 w-[28rem] rounded-lg border bg-white p-3 shadow">
-          {loading ? (
-            <div className="text-sm text-gray-600">Loading…</div>
-          ) : error ? (
-            <div className="text-sm text-red-600">{error}</div>
-          ) : data ? (
-            <div className="space-y-3 text-sm">
-              <div>
-                <div>
-                  <span className="font-semibold">Events:</span> {data.summary.count}
-                </div>
-                <div>
-                  <span className="font-semibold">Avg latency:</span> {data.summary.avg_latency_ms?.toFixed(1) ?? "—"} ms
-                </div>
-                <div>
-                  <span className="font-semibold">Avg top sim:</span> {data.summary.avg_top_sim?.toFixed(3) ?? "—"}
-                </div>
+    <div className={`drawer drawer-end ${open ? "drawer-open" : ""}`}>
+      <input
+        id={drawerId}
+        type="checkbox"
+        className="drawer-toggle"
+        checked={open}
+        onChange={() => setOpen((prev) => !prev)}
+      />
+      <div className="drawer-content">
+        <button
+          className="btn btn-ghost btn-xs"
+          onClick={() => setOpen(true)}
+        >
+          {open ? "Hide metrics" : "Show metrics"}
+        </button>
+      </div>
+      <div className="drawer-side z-30">
+        <label
+          htmlFor={drawerId}
+          aria-label="Close metrics drawer"
+          className="drawer-overlay"
+          onClick={() => setOpen(false)}
+        />
+        <div className="menu w-full max-w-md bg-base-100 p-0 text-base-content sm:max-w-xl">
+          <div className="card h-full rounded-none border-l border-base-200 shadow-2xl">
+            <div className="card-body space-y-4 text-sm">
+              <div className="flex items-center justify-between">
+                <h3 className="card-title text-base">Recent metrics</h3>
+                <button
+                  className="btn btn-sm btn-outline"
+                  onClick={() => setOpen(false)}
+                >
+                  Close
+                </button>
               </div>
-              <div>
-                <div className="mb-1 text-xs uppercase text-gray-500">Recent queries</div>
-                <div className="max-h-64 overflow-auto rounded border">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-2 py-1 text-left">Query ID</th>
-                        <th className="px-2 py-1 text-left">Latency</th>
-                        <th className="px-2 py-1 text-left">k</th>
-                        <th className="px-2 py-1 text-left">Top sim</th>
-                        <th className="px-2 py-1 text-left">Model</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.events.slice().reverse().map((event) => (
-                        <tr key={event.query_id} className="border-t">
-                          <td className="px-2 py-1">{event.query_id.slice(0, 8)}…</td>
-                          <td className="px-2 py-1">{event.latency_ms.toFixed(0)} ms</td>
-                          <td className="px-2 py-1">{event.k}</td>
-                          <td className="px-2 py-1">{event.top_similarity?.toFixed(3) ?? "—"}</td>
-                          <td className="px-2 py-1">{event.model}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              {loading ? (
+                <div className="text-base-content/70">Loading…</div>
+              ) : error ? (
+                <div className="alert alert-error text-xs">{error}</div>
+              ) : data ? (
+                <>
+                  <div className="stats stats-vertical shadow sm:stats-horizontal">
+                    <div className="stat">
+                      <div className="stat-title">Events</div>
+                      <div className="stat-value text-lg">{data.summary.count}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title">Avg latency</div>
+                      <div className="stat-value text-lg">
+                        {data.summary.avg_latency_ms?.toFixed(1) ?? "—"} ms
+                      </div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-title">Avg top sim</div>
+                      <div className="stat-value text-lg">
+                        {data.summary.avg_top_sim?.toFixed(3) ?? "—"}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase text-base-content/60">
+                      Recent queries
+                    </div>
+                    <div className="max-h-64 overflow-auto rounded-box border border-base-300">
+                      <table className="table table-zebra table-xs">
+                        <thead>
+                          <tr>
+                            <th>Query ID</th>
+                            <th>Latency</th>
+                            <th>k</th>
+                            <th>Top sim</th>
+                            <th>Model</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.events.slice().reverse().map((event) => (
+                            <tr key={event.query_id}>
+                              <td>{event.query_id.slice(0, 8)}…</td>
+                              <td>{event.latency_ms.toFixed(0)} ms</td>
+                              <td>{event.k}</td>
+                              <td>{event.top_similarity?.toFixed(3) ?? "—"}</td>
+                              <td>{event.model}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-base-content/70">No data yet.</div>
+              )}
             </div>
-          ) : (
-            <div className="text-sm text-gray-600">No data yet.</div>
-          )}
+          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
