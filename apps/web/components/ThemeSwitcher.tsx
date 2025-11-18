@@ -3,8 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const THEME_OPTIONS = [
-  { value: "light", label: "Daylight", icon: "☀️" },
-  { value: "forest", label: "Forest", icon: "🌲" },
+  { value: "light", label: "Daylight", subtitle: "Light", icon: "☀️" },
+  { value: "forest", label: "Forest", subtitle: "Dark", icon: "🌲" },
 ] as const;
 
 type ThemeName = (typeof THEME_OPTIONS)[number]["value"];
@@ -44,6 +44,7 @@ export default function ThemeSwitcher() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, theme);
     }
+    document.body?.setAttribute("data-theme-ready", "true");
   }, [theme]);
 
   const selectedLabel = useMemo(() => {
@@ -75,10 +76,17 @@ export default function ThemeSwitcher() {
               className={`justify-between ${theme === option.value ? "active" : ""}`}
               onClick={() => setTheme(option.value)}
             >
-              <span>
-                {option.icon} {option.label}
+              <span className="flex flex-col items-start text-left text-sm leading-tight">
+                <span className="font-semibold">
+                  {option.icon} {option.label}
+                </span>
+                <span className="text-[11px] text-base-content/70">{option.subtitle}</span>
               </span>
-              {theme === option.value ? <span className="badge badge-primary badge-xs">Active</span> : null}
+              {theme === option.value ? (
+                <span className="badge badge-primary badge-xs">Active</span>
+              ) : (
+                <span className="badge badge-ghost badge-xs">Pick</span>
+              )}
             </button>
           </li>
         ))}

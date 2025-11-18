@@ -10,6 +10,7 @@ import HealthBadge from "../../components/HealthBadge";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
 import UploadLimitHint from "../../components/UploadLimitHint";
+import SkeletonLine, { SkeletonBlock } from "../../components/Skeletons";
 import { useAuth } from "../../components/AuthProvider";
 import { API_BASE } from "../../lib/api";
 import {
@@ -110,6 +111,12 @@ function LoadingBadge({ label }: { label: string }) {
 const GRAPH_MODE_ENABLED = (process.env.NEXT_PUBLIC_GRAPH_RAG_ENABLED ?? "false").toLowerCase() === "true";
 const LLM_RERANK_ALLOWED = (process.env.NEXT_PUBLIC_LLM_RERANK_ENABLED ?? "false").toLowerCase() === "true";
 const FACT_CHECK_LLM_ALLOWED = (process.env.NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED ?? "false").toLowerCase() === "true";
+type PlaygroundMode = "simple" | "advanced" | "graph";
+const MODE_TAB_CONFIG: Array<{ value: PlaygroundMode; label: string; panelId: string }> = [
+  { value: "simple", label: "Simple", panelId: "mode-panel-simple" },
+  { value: "advanced", label: "A/B", panelId: "mode-panel-advanced" },
+  { value: "graph", label: "Graph", panelId: "mode-panel-graph" },
+];
 
 export default function Playground() {
   const {
@@ -148,7 +155,7 @@ export default function Playground() {
   const [busy, setBusy] = useState<"idle" | "uploading" | "indexing" | "querying" | "comparing">(
     "idle",
   );
-  const [mode, setMode] = useState<"simple" | "advanced" | "graph">(
+  const [mode, setMode] = useState<PlaygroundMode>(
     GRAPH_MODE_ENABLED ? "graph" : "simple",
   );
 
@@ -329,6 +336,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
     authSatisfied && !authGateActive && indexed && query.trim().length > 0 && busy !== "querying";
   const canCompare =
     authSatisfied && !authGateActive && indexed && query.trim().length > 0 && busy !== "comparing";
+  const isCheckingApi = apiStatus.state === "checking";
+  const isGraphLoading = mode === "graph" && busy === "querying";
+  const visibleModeTabs = MODE_TAB_CONFIG.filter(
+    (tab) => tab.value !== "graph" || GRAPH_MODE_ENABLED,
+  );
 
   async function useSamples() {
     const files = await fetchSampleFiles();
@@ -673,8 +685,8 @@ const [queryId, setQueryId] = useState<string | null>(null);
         <div className="card-body space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-primary">Playground</p>
-              <h1 className="text-3xl font-bold text-base-content">RAG Playground</h1>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Playground</p>
+              <h1 className="card-title text-3xl text-base-content">RAG Playground</h1>
               <p className="text-sm text-base-content/70">
                 Upload, configure, and compare Simple, A/B, and Graph RAG answers.
               </p>
@@ -713,36 +725,35 @@ const [queryId, setQueryId] = useState<string | null>(null);
               ) : null}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="tabs tabs-boxed text-sm">
-              <button
-                type="button"
-                className={`tab ${mode === "simple" ? "tab-active" : ""}`}
-                onClick={() => setMode("simple")}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="w-full overflow-x-auto">
+              <div
+                className="tabs tabs-boxed inline-flex text-sm"
+                role="tablist"
+                aria-label="Answer modes"
               >
-                Simple
-              </button>
-              <button
-                type="button"
-                className={`tab ${mode === "advanced" ? "tab-active" : ""}`}
-                onClick={() => setMode("advanced")}
-              >
-                A/B
-              </button>
-              {GRAPH_MODE_ENABLED ? (
-                <button
-                  type="button"
-                  className={`tab ${mode === "graph" ? "tab-active" : ""}`}
-                  onClick={() => setMode("graph")}
-                >
-                  Graph
-                </button>
-              ) : null}
+                {visibleModeTabs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    id={`mode-tab-${tab.value}`}
+                    role="tab"
+                    aria-selected={mode === tab.value}
+                    aria-controls={tab.panelId}
+                    className={`tab whitespace-nowrap ${mode === tab.value ? "tab-active" : ""}`}
+                    onClick={() => setMode(tab.value)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <span className="badge badge-outline badge-sm">
-              Ephemeral session · auto-cleans after 30m idle
-            </span>
-            <span className="badge badge-outline badge-sm">Client ID prefix: {clientIdPrefix}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="badge badge-outline badge-sm">
+                Ephemeral session · auto-cleans after 30m idle
+              </span>
+              <span className="badge badge-outline badge-sm">Client ID prefix: {clientIdPrefix}</span>
+            </div>
           </div>
         </div>
       </section>
@@ -750,7 +761,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
         <div className="card-body space-y-4 text-sm text-base-content">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold">API status</h2>
+              <h2 className="card-title text-base text-base-content">API status</h2>
               <p className="text-xs text-base-content/70">
                 Using NEXT_PUBLIC_API_BASE_URL for all requests.
               </p>
@@ -760,42 +771,56 @@ const [queryId, setQueryId] = useState<string | null>(null);
               onClick={() => {
                 void checkApiStatus();
               }}
-              className="btn btn-outline btn-xs"
+              className="btn btn-ghost btn-xs"
               disabled={apiStatus.state === "checking"}
             >
-              {apiStatus.state === "checking" ? "Checking…" : "Refresh"}
+              {apiStatus.state === "checking" ? <LoadingBadge label="Checking" /> : "Refresh"}
             </button>
           </div>
           <dl className="grid grid-cols-1 gap-3 text-xs text-base-content/80 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-box bg-base-200/60 p-3">
               <dt className="text-xs font-semibold uppercase text-base-content/60">Base URL</dt>
-              <dd className="break-words text-base-content">{apiBaseUrl}</dd>
+              <dd className="break-words text-base-content">
+                {isCheckingApi ? <SkeletonLine className="h-4 w-40" /> : apiBaseUrl}
+              </dd>
             </div>
             <div className="rounded-box bg-base-200/60 p-3">
               <dt className="text-xs font-semibold uppercase text-base-content/60">Storage backend</dt>
-              <dd>{gcsIngestionEffective ? "Cloud-backed (GCS)" : "In-memory"}</dd>
+              <dd>
+                {isCheckingApi ? (
+                  <SkeletonLine className="h-4 w-24" />
+                ) : gcsIngestionEffective ? (
+                  "Cloud-backed (GCS)"
+                ) : (
+                  "In-memory"
+                )}
+              </dd>
             </div>
             <div className="rounded-box bg-base-200/60 p-3">
               <dt className="text-xs font-semibold uppercase text-base-content/60">Connectivity</dt>
               <dd
                 className={
-                  apiStatus.state === "ok"
+                  isCheckingApi
+                    ? "text-base-content/60"
+                    : apiStatus.state === "ok"
                     ? "text-success"
                     : apiStatus.state === "error"
                       ? "text-error"
                       : "text-base-content/60"
                 }
               >
-                {apiStatus.state === "ok"
-                  ? apiStatus.detail
-                  : apiStatus.state === "error"
-                    ? `unreachable — ${apiStatus.detail}`
-                    : "checking…"}
+                {isCheckingApi
+                  ? <SkeletonLine className="h-4 w-24" />
+                  : apiStatus.state === "ok"
+                    ? apiStatus.detail
+                    : apiStatus.state === "error"
+                      ? `unreachable — ${apiStatus.detail}`
+                      : ""}
               </dd>
             </div>
             <div className="rounded-box bg-base-200/60 p-3">
               <dt className="text-xs font-semibold uppercase text-base-content/60">Client ID prefix</dt>
-              <dd>{clientIdPrefix}</dd>
+              <dd>{isCheckingApi ? <SkeletonLine className="h-4 w-16" /> : clientIdPrefix}</dd>
             </div>
           </dl>
           {apiStatus.state === "error" ? (
@@ -889,7 +914,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
           <div className="card-body space-y-3 text-sm text-base-content">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold">Auth diagnostics</h2>
+                <h2 className="card-title text-base text-base-content">Auth diagnostics</h2>
                 <p className="text-xs text-base-content/70">Client-side session information</p>
               </div>
               <button
@@ -934,14 +959,14 @@ const [queryId, setQueryId] = useState<string | null>(null);
         <section className="col-span-12 card bg-base-100 shadow">
           <div className="card-body space-y-4 text-sm text-base-content">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold">Admin tools</h2>
+              <h2 className="card-title text-base text-base-content">Admin tools</h2>
               <button
                 type="button"
                 onClick={handleAdminRefresh}
-                className="btn btn-outline btn-xs"
+                className="btn btn-ghost btn-xs"
                 disabled={adminLoading}
               >
-                {adminLoading ? "Refreshing…" : "Refresh data"}
+                {adminLoading ? <LoadingBadge label="Refreshing" /> : "Refresh data"}
               </button>
             </div>
             {adminError ? <p className="text-xs text-error">{adminError}</p> : null}
@@ -1046,7 +1071,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
         <div className="card bg-base-100 shadow">
           <div className="card-body space-y-4 text-sm text-base-content">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Documents & session</div>
+              <h3 className="card-title text-base text-base-content">Documents & session</h3>
               {busy !== "idle" ? <LoadingBadge label={busy === "uploading" ? "Uploading" : "Busy"} /> : null}
             </div>
             <Uploader
@@ -1090,7 +1115,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
         {mode === "advanced" ? (
           <div className="card bg-base-100 shadow">
             <div className="card-body space-y-3">
-              <div className="text-sm font-semibold">Profiles (A/B)</div>
+              <h3 className="card-title text-base text-base-content">Profiles (A/B)</h3>
               <AdvancedSettings
                 valueA={profileA}
                 valueB={profileB}
@@ -1106,87 +1131,94 @@ const [queryId, setQueryId] = useState<string | null>(null);
         className={`col-span-12 space-y-4 ${mode === "simple" ? "lg:col-span-6" : "lg:col-span-9"}`}
       >
         <div className="card bg-base-100 shadow">
-          <div className="card-body space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm font-semibold">Ask a question</div>
-              {mode !== "graph" ? (
-                <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
-                  <span className="font-semibold text-base-content">Answer mode</span>
-                  <div className="join">
-                    <button
-                      type="button"
-                      className={`${modeButtonClass("grounded")} join-item`}
-                      onClick={() => setAnswerMode("grounded")}
-                    >
-                      Document-only
-                    </button>
-                    <button
-                      type="button"
-                      className={`${modeButtonClass("blended")} join-item`}
-                      onClick={() => setAnswerMode("blended")}
-                    >
-                      Doc + world context
-                    </button>
+          <div className="card-body space-y-6">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="card-title text-base text-base-content">Ask a question</h2>
+                {mode !== "graph" ? (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+                    <span className="font-semibold text-base-content">Answer mode</span>
+                    <div className="join">
+                      <button
+                        type="button"
+                        className={`${modeButtonClass("grounded")} join-item`}
+                        onClick={() => setAnswerMode("grounded")}
+                      >
+                        Document-only
+                      </button>
+                      <button
+                        type="button"
+                        className={`${modeButtonClass("blended")} join-item`}
+                        onClick={() => setAnswerMode("blended")}
+                      >
+                        Doc + world context
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-3 md:flex-row">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="e.g., What is our PTO policy?"
-                className="input input-bordered w-full"
-              />
-              <div className="flex flex-shrink-0 gap-2">
-                {mode === "simple" ? (
-                  <button
-                    type="button"
-                    onClick={doQuerySimple}
-                    className="btn btn-primary"
-                    disabled={!canQuery}
-                  >
-                    {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
-                  </button>
-                ) : null}
-                {mode === "advanced" ? (
-                  <button
-                    type="button"
-                    onClick={doCompare}
-                    className="btn btn-primary"
-                    disabled={!canCompare}
-                  >
-                    {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
-                  </button>
-                ) : null}
-                {mode === "graph" ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void runGraphQuery();
-                    }}
-                    className="btn btn-primary"
-                    disabled={
-                      !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
-                    }
-                  >
-                    {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
-                  </button>
                 ) : null}
               </div>
+              <div className="flex flex-col gap-3 md:flex-row">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="e.g., What is our PTO policy?"
+                  className="input input-bordered w-full"
+                />
+                <div className="flex flex-shrink-0 gap-2">
+                  {mode === "simple" ? (
+                    <button
+                      type="button"
+                      onClick={doQuerySimple}
+                      className="btn btn-primary"
+                      disabled={!canQuery}
+                    >
+                      {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
+                    </button>
+                  ) : null}
+                  {mode === "advanced" ? (
+                    <button
+                      type="button"
+                      onClick={doCompare}
+                      className="btn btn-primary"
+                      disabled={!canCompare}
+                    >
+                      {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
+                    </button>
+                  ) : null}
+                  {mode === "graph" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void runGraphQuery();
+                      }}
+                      className="btn btn-primary"
+                      disabled={
+                        !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
+                      }
+                    >
+                      {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {mode !== "graph" ? (
+                <p className="text-xs text-base-content/60">World notes appear only in Doc + world context.</p>
+              ) : null}
             </div>
-            {mode !== "graph" ? (
-              <p className="text-xs text-base-content/60">World notes appear only in Doc + world context.</p>
-            ) : null}
-          </div>
-        </div>
+            <div className="divider" />
+            <div className="space-y-6">
 
         {mode === "graph" ? (
-          <>
+          <div
+            id="mode-panel-graph"
+            role="tabpanel"
+            aria-labelledby="mode-tab-graph"
+            className="space-y-4"
+          >
             <div className="card bg-base-100 shadow">
               <div className="card-body space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-semibold">Graph RAG answer</div>
+                  <h3 className="card-title text-base text-base-content">Graph RAG answer</h3>
                   {graphResult?.verification ? (
                     <span className="badge badge-outline badge-info">
                       Verification: {graphResult.verification.verdict}
@@ -1196,12 +1228,14 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
                   {graphResult
                     ? renderMarkdown(graphResult.answer, "Graph RAG answer will appear here.")
-                    : "Graph RAG answer will appear here."}
+                    : isGraphLoading
+                      ? <SkeletonBlock lines={5} />
+                      : "Graph RAG answer will appear here."}
                 </div>
                 {graphResult?.verification ? (
                   <div className="rounded-box border border-base-300 bg-base-200/60 p-3 text-xs text-base-content/80">
-                    <div className="font-semibold text-base-content">Verification</div>
-                    <div>Mode: {graphResult.verification.mode}</div>
+                    <div className="text-xs font-semibold uppercase text-base-content/60">Verification</div>
+                    <div className="text-base-content">Mode: {graphResult.verification.mode}</div>
                     <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
                     <div className="text-base-content/70">{graphResult.verification.notes}</div>
                   </div>
@@ -1212,12 +1246,12 @@ const [queryId, setQueryId] = useState<string | null>(null);
               <div className="card bg-base-100 shadow">
                 <div className="card-body space-y-4 text-sm">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold">Diagnostics</div>
+                    <h3 className="card-title text-base text-base-content">Diagnostics</h3>
                     <button
                       type="button"
                       onClick={() => setShowGraphTrace((prev) => !prev)}
                       disabled={!graphTrace}
-                      className="btn btn-outline btn-xs"
+                      className="btn btn-accent btn-outline btn-xs"
                     >
                       {showGraphTrace ? "Hide trace" : "Show trace"}
                     </button>
@@ -1247,115 +1281,125 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   ) : null}
                 </div>
               </div>
+            ) : isGraphLoading ? (
+              <div className="card bg-base-100 shadow">
+                <div className="card-body">
+                  <SkeletonBlock lines={4} />
+                </div>
+              </div>
             ) : null}
-          </>
+          </div>
         ) : null}
 
         {mode === "simple" ? (
-          <div className="card bg-base-100 shadow">
-            <div className="card-body space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-semibold">Answer</div>
-                {confidence ? (
-                  <span className={`badge badge-outline ${confidenceStyles[confidence]}`}>
-                    Confidence: {confidenceLabels[confidence]}
-                  </span>
-                ) : null}
-              </div>
-              <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
-                {renderMarkdown(answer, "Answer stream will appear here.")}
-              </div>
-              <div className="flex flex-wrap justify-end gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => copyMarkdown(answer)}
-                  disabled={!answer}
-                  className="btn btn-outline btn-xs"
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadMarkdown(answer, "answer.md")}
-                  disabled={!answerComplete || !answer}
-                  className="btn btn-outline btn-xs"
-                >
-                  Download .md
-                </button>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
-                <div className="rounded-box border border-base-300 bg-base-200/60 p-3">
-                  {sources.length ? (
-                    <ul className="space-y-2 text-sm">
-                      {sources.map((source) => (
-                        <li key={source.rank}>
-                          <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                          <div className="text-base-content/70 line-clamp-4">{source.text}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-base-content/60">Retrieved chunks will show here.</p>
-                  )}
+          <div id="mode-panel-simple" role="tabpanel" aria-labelledby="mode-tab-simple">
+            <div className="card bg-base-100 shadow">
+              <div className="card-body space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="card-title text-base text-base-content">Answer</h3>
+                  {confidence ? (
+                    <span className={`badge badge-outline ${confidenceStyles[confidence]}`}>
+                      Confidence: {confidenceLabels[confidence]}
+                    </span>
+                  ) : null}
                 </div>
+                <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
+                  {renderMarkdown(answer, "Answer stream will appear here.")}
+                </div>
+                <div className="flex flex-wrap justify-end gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => copyMarkdown(answer)}
+                    disabled={!answer}
+                    className="btn btn-ghost btn-xs"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadMarkdown(answer, "answer.md")}
+                    disabled={!answerComplete || !answer}
+                    className="btn btn-ghost btn-xs"
+                  >
+                    Download .md
+                  </button>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                  <div className="rounded-box border border-base-300 bg-base-200/60 p-3">
+                    {sources.length ? (
+                      <ul className="space-y-2 text-sm">
+                        {sources.map((source) => (
+                          <li key={source.rank}>
+                            <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                            <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-base-content/60">Retrieved chunks will show here.</p>
+                    )}
+                  </div>
+                </div>
+                <FeedbackBar queryId={queryId} />
               </div>
-              <FeedbackBar queryId={queryId} />
             </div>
           </div>
         ) : null}
 
         {mode === "advanced" ? (
-          <div className="card bg-base-100 shadow">
-            <div className="card-body space-y-4">
-              <div className="text-sm font-semibold">A/B answers</div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {[
-                  { label: "Answer — Profile A", value: answerA, complete: answerAComplete, sources: retrievedA, fileName: "answer-profile-a.md" },
-                  { label: "Answer — Profile B", value: answerB, complete: answerBComplete, sources: retrievedB, fileName: "answer-profile-b.md" },
-                ].map((item) => (
-                  <div key={item.label} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
-                    <div className="text-sm font-semibold">{item.label}</div>
-                    <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
-                      {renderMarkdown(item.value, `${item.label} stream will appear here.`)}
-                    </div>
-                    <div className="flex justify-end gap-2 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => copyMarkdown(item.value)}
-                        disabled={!item.value}
-                        className="btn btn-outline btn-xs"
-                      >
-                        Copy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => downloadMarkdown(item.value, item.fileName)}
-                        disabled={!item.complete || !item.value}
-                        className="btn btn-outline btn-xs"
-                      >
-                        Download .md
-                      </button>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
-                      <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
-                        {item.sources.length ? (
-                          <ul className="space-y-2 text-sm">
-                            {item.sources.map((source) => (
-                              <li key={`${item.label}-${source.rank}`}>
-                                <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                                <div className="text-base-content/70 line-clamp-4">{source.text}</div>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-base-content/60">—</p>
-                        )}
+          <div id="mode-panel-advanced" role="tabpanel" aria-labelledby="mode-tab-advanced">
+            <div className="card bg-base-100 shadow">
+              <div className="card-body space-y-4">
+                <h3 className="card-title text-base text-base-content">A/B answers</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {[
+                    { label: "Answer — Profile A", value: answerA, complete: answerAComplete, sources: retrievedA, fileName: "answer-profile-a.md" },
+                    { label: "Answer — Profile B", value: answerB, complete: answerBComplete, sources: retrievedB, fileName: "answer-profile-b.md" },
+                  ].map((item) => (
+                    <div key={item.label} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
+                      <div className="text-sm font-semibold">{item.label}</div>
+                      <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
+                        {renderMarkdown(item.value, `${item.label} stream will appear here.`)}
+                      </div>
+                      <div className="flex justify-end gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => copyMarkdown(item.value)}
+                          disabled={!item.value}
+                          className="btn btn-ghost btn-xs"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadMarkdown(item.value, item.fileName)}
+                          disabled={!item.complete || !item.value}
+                          className="btn btn-ghost btn-xs"
+                        >
+                          Download .md
+                        </button>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                        <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
+                          {item.sources.length ? (
+                            <ul className="space-y-2 text-sm">
+                              {item.sources.map((source) => (
+                                <li key={`${item.label}-${source.rank}`}>
+                                  <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                                  <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-base-content/60">—</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1364,13 +1408,16 @@ const [queryId, setQueryId] = useState<string | null>(null);
         {error ? (
           <div className="alert alert-error">{error}</div>
         ) : null}
+            </div>
+          </div>
+        </div>
       </section>
       {mode === "simple" ? (
         <aside className="col-span-12 space-y-4 lg:col-span-3">
           <div className="card bg-base-100 shadow">
             <div className="card-body space-y-3 text-sm text-base-content">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Explainability</div>
+                <h3 className="card-title text-base text-base-content">Explainability</h3>
                 <span className="badge badge-outline badge-sm">Simple mode</span>
               </div>
               <div>

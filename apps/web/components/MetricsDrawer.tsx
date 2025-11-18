@@ -3,6 +3,7 @@
 import React, { useEffect, useId, useState } from "react";
 import { fetchMetrics } from "../lib/rag-api";
 import type { MetricsResponse } from "../lib/types";
+import { SkeletonBlock, SkeletonLine } from "./Skeletons";
 
 export default function MetricsDrawer() {
   const [open, setOpen] = useState(false);
@@ -61,14 +62,17 @@ export default function MetricsDrawer() {
               <div className="flex items-center justify-between">
                 <h3 className="card-title text-base">Recent metrics</h3>
                 <button
-                  className="btn btn-sm btn-outline"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => setOpen(false)}
                 >
                   Close
                 </button>
               </div>
               {loading ? (
-                <div className="text-base-content/70">Loading…</div>
+                <div className="space-y-4">
+                  <SkeletonLine className="h-5 w-32" />
+                  <SkeletonBlock lines={3} />
+                </div>
               ) : error ? (
                 <div className="alert alert-error text-xs">{error}</div>
               ) : data ? (
@@ -95,29 +99,31 @@ export default function MetricsDrawer() {
                     <div className="mb-2 text-xs font-semibold uppercase text-base-content/60">
                       Recent queries
                     </div>
-                    <div className="max-h-64 overflow-auto rounded-box border border-base-300">
-                      <table className="table table-zebra table-xs">
-                        <thead>
-                          <tr>
-                            <th>Query ID</th>
-                            <th>Latency</th>
-                            <th>k</th>
-                            <th>Top sim</th>
-                            <th>Model</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.events.slice().reverse().map((event) => (
-                            <tr key={event.query_id}>
-                              <td>{event.query_id.slice(0, 8)}…</td>
-                              <td>{event.latency_ms.toFixed(0)} ms</td>
-                              <td>{event.k}</td>
-                              <td>{event.top_similarity?.toFixed(3) ?? "—"}</td>
-                              <td>{event.model}</td>
+                    <div className="max-h-64 rounded-box border border-base-300">
+                      <div className="max-h-64 overflow-y-auto overflow-x-auto">
+                        <table className="table table-zebra table-xs">
+                          <thead>
+                            <tr>
+                              <th>Query ID</th>
+                              <th>Latency</th>
+                              <th>k</th>
+                              <th>Top sim</th>
+                              <th>Model</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {data.events.slice().reverse().map((event) => (
+                              <tr key={event.query_id}>
+                                <td>{event.query_id.slice(0, 8)}…</td>
+                                <td>{event.latency_ms.toFixed(0)} ms</td>
+                                <td>{event.k}</td>
+                                <td>{event.top_similarity?.toFixed(3) ?? "—"}</td>
+                                <td>{event.model}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </>

@@ -38,14 +38,14 @@ export default function GraphRagTraceViewer({ trace }: Props) {
       <div className="card bg-base-100 shadow">
         <div className="card-body flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xs uppercase tracking-wide text-base-content/60">Trace</div>
-            <div className="text-base font-semibold">{trace.mode}</div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Trace</p>
+            <h3 className="card-title text-base">{trace.mode}</h3>
             <div className="text-[11px] text-base-content/60">Request {trace.request_id}</div>
           </div>
           <button
             type="button"
             onClick={handleDownload}
-            className="btn btn-outline btn-xs"
+            className="btn btn-ghost btn-xs"
           >
             Download JSON
           </button>
@@ -114,7 +114,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
         <div className="card bg-base-100 shadow-sm">
           <div className="card-body space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-semibold uppercase text-base-content/60">Verification</div>
+              <p className="text-xs font-semibold uppercase text-base-content/60">Verification</p>
               <span className={`badge ${verdictClass(trace.verification?.verdict)}`}>
                 {trace.verification?.verdict ?? "n/a"}
               </span>

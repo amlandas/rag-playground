@@ -4,6 +4,12 @@
 
 /* Simple page scaffolding */
 html, body, :root { height: 100%; }
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+body[data-theme-ready="false"] {
+  transition: none;
+}
 
 /* ---- RAG answer formatting ---- */
 .answer-body {

@@ -41,14 +41,14 @@ export default function FeedbackBar({ queryId }: { queryId: string | null }) {
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <div className="join">
         <button
-          className="btn btn-xs join-item btn-ghost"
+          className="btn btn-ghost btn-outline btn-xs join-item"
           disabled={!!sending}
           onClick={() => submit(1)}
         >
           👍 Helpful
         </button>
         <button
-          className="btn btn-xs join-item btn-ghost"
+          className="btn btn-ghost btn-outline btn-xs join-item"
           disabled={!!sending}
           onClick={() => submit(-1)}
         >
