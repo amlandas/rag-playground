@@ -26,7 +26,7 @@ function Field({ label, value, onChange, type = "number", step = 1, min = 0 }: F
         </span>
       </div>
       <input
-        className="input input-bordered input-sm w-full"
+        className="input input-bordered input-sm w-full bg-base-100"
         value={value}
         onChange={(event) =>
           onChange(type === "number" ? Number(event.target.value) : event.target.value)
