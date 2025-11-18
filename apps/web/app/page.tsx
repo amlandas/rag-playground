@@ -24,8 +24,8 @@ export default function Landing() {
           <div className="card-body space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-primary">Live preview</p>
-                <h1 className="text-4xl font-bold text-base-content">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Live preview</p>
+                <h1 className="card-title text-4xl text-base-content">
                   RAG Playground for domain experts
                 </h1>
                 <p className="mt-2 text-base text-base-content/70">
@@ -35,10 +35,10 @@ export default function Landing() {
               <HealthBadge />
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/playground" className="btn btn-primary">
+              <Link href="/playground" className="btn btn-secondary">
                 Try the playground
               </Link>
-              <Link href="/#docs" className="btn btn-outline">
+              <Link href="/#docs" className="btn btn-ghost">
                 View docs (coming soon)
               </Link>
             </div>
@@ -52,7 +52,7 @@ export default function Landing() {
           {features.map((feature) => (
             <article key={feature.title} className="card bg-base-100 shadow-md">
               <div className="card-body space-y-2">
-                <h2 className="text-lg font-semibold">{feature.title}</h2>
+                <h2 className="card-title text-lg">{feature.title}</h2>
                 <p className="text-sm text-base-content/70">{feature.body}</p>
               </div>
             </article>
@@ -61,7 +61,7 @@ export default function Landing() {
 
         <section id="docs" className="card bg-base-100 shadow-lg">
           <div className="card-body space-y-3">
-            <h2 className="text-xl font-semibold text-base-content">Getting started</h2>
+            <h2 className="card-title text-xl text-base-content">Getting started</h2>
             <p className="text-base text-base-content/70">
               Head to the playground to upload a PDF or use the sample dataset. Build an index, run a query in Simple, A/B, or Graph mode,
               and inspect the retrieved context and verification signals inline.
