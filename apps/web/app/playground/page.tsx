@@ -667,8 +667,8 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }, [authEnabled, user?.is_admin, loadAdminData]);
 
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-base-200 px-4 py-6 lg:py-10">
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-12 gap-4">
+    <main className="flex flex-1 bg-base-200">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-12 gap-6 px-4 py-8">
       <section className="col-span-12 card bg-base-100 shadow-xl">
         <div className="card-body space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

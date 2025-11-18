@@ -1,41 +1,77 @@
 import Link from "next/link";
 import HealthBadge from "../components/HealthBadge";
 
+const features = [
+  {
+    title: "Visual diagnostics",
+    body: "See metrics, health signals, and graph traces that explain every answer.",
+  },
+  {
+    title: "Graph, Simple, and A/B modes",
+    body: "Switch modes without leaving the page and compare profiles with a single click.",
+  },
+  {
+    title: "Secure by default",
+    body: "Session data stays in-memory and auto-cleans after inactivity. Bring your own docs safely.",
+  },
+];
+
 export default function Landing() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
-      <div className="mb-6">
-        <HealthBadge />
+    <main className="flex flex-1 bg-base-200">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
+        <section className="card bg-base-100 shadow-xl">
+          <div className="card-body space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">Live preview</p>
+                <h1 className="text-4xl font-bold text-base-content">
+                  RAG Playground for domain experts
+                </h1>
+                <p className="mt-2 text-base text-base-content/70">
+                  Upload documents, tune retrieval settings, and watch grounded answers stream in with full traceability.
+                </p>
+              </div>
+              <HealthBadge />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/playground" className="btn btn-primary">
+                Try the playground
+              </Link>
+              <Link href="/#docs" className="btn btn-outline">
+                View docs (coming soon)
+              </Link>
+            </div>
+            <p className="text-sm text-base-content/60">
+              Privacy note: uploads stay in-memory for the session and auto-clean on inactivity. Avoid sensitive data for now—we’ll add hosted samples soon.
+            </p>
+          </div>
+        </section>
+
+        <section id="about" className="grid gap-4 md:grid-cols-3">
+          {features.map((feature) => (
+            <article key={feature.title} className="card bg-base-100 shadow-md">
+              <div className="card-body space-y-2">
+                <h2 className="text-lg font-semibold">{feature.title}</h2>
+                <p className="text-sm text-base-content/70">{feature.body}</p>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <section id="docs" className="card bg-base-100 shadow-lg">
+          <div className="card-body space-y-3">
+            <h2 className="text-xl font-semibold text-base-content">Getting started</h2>
+            <p className="text-base text-base-content/70">
+              Head to the playground to upload a PDF or use the sample dataset. Build an index, run a query in Simple, A/B, or Graph mode,
+              and inspect the retrieved context and verification signals inline.
+            </p>
+            <div className="rounded-box bg-base-200/60 p-4 text-sm text-base-content/70">
+              👉 Looking for APIs or deployment docs? They’re coming soon—subscribe to updates from the Docs link above.
+            </div>
+          </div>
+        </section>
       </div>
-
-      <h1 className="text-4xl font-bold tracking-tight">
-        RAG Playground for Domain Experts
-      </h1>
-      <p className="mt-4 text-lg text-gray-700">
-        Upload documents, tweak retrieval settings, and see exactly what the AI used to answer —
-        no code required.
-      </p>
-
-      <div className="mt-8 flex gap-3">
-        <Link
-          href="/playground"
-          className="rounded-lg bg-black px-5 py-2.5 text-white shadow hover:bg-gray-800"
-        >
-          Try the Playground
-        </Link>
-        <a
-          href="https://"
-          target="_blank"
-          className="rounded-lg border px-5 py-2.5 text-gray-800 hover:bg-gray-50"
-        >
-          Read the docs (coming soon)
-        </a>
-      </div>
-
-      <p className="mt-8 text-sm text-gray-500">
-        Privacy note: For now, this demo stores files only in an in-memory session and auto-cleans
-        on inactivity. Avoid uploading sensitive data. We’ll provide sample docs in the next step.
-      </p>
     </main>
   );
 }

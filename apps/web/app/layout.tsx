@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { AuthProvider } from "../components/AuthProvider";
+import SiteNavbar from "../components/SiteNavbar";
 
 export const metadata: Metadata = {
   title: "RAG Playground",
@@ -16,7 +17,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" data-theme="light">
       <body className="min-h-screen bg-base-200 text-base-content antialiased">
         <AuthProvider enabled={googleAuthEnabled} clientId={googleClientId}>
-          <div className="flex min-h-screen flex-col">{children}</div>
+          <div className="flex min-h-screen flex-col">
+            <SiteNavbar />
+            <div className="flex flex-1 flex-col">{children}</div>
+          </div>
         </AuthProvider>
       </body>
     </html>
