@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type SVGProps } from "react";
+import React, { useCallback, useEffect, useState, type SVGProps } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AdvancedSettings from "../../components/AdvancedSettings";
