@@ -26,24 +26,24 @@ export default function GraphRagTraceViewer({ trace }: Props) {
   }, [trace]);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-800 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-slate-500">Trace</div>
-          <div className="text-base font-semibold text-slate-900">{trace.mode}</div>
-          <div className="text-[11px] text-slate-500">Request {trace.request_id}</div>
+    <div className="space-y-4 text-sm text-base-content">
+      <div className="card bg-base-100 shadow-sm">
+        <div className="card-body space-y-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-base-content/60">Trace</div>
+              <div className="text-base font-semibold text-base-content">{trace.mode}</div>
+              <div className="text-[11px] text-base-content/60">Request {trace.request_id}</div>
+            </div>
+            <button type="button" onClick={handleDownload} className="btn btn-outline btn-xs">
+              Download JSON
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={handleDownload}
-          className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          Download JSON
-        </button>
       </div>
 
       {trace.warnings.length ? (
-        <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        <div className="alert alert-warning text-xs">
           <div className="font-semibold">Warnings</div>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
             {trace.warnings.map((warning) => (
@@ -53,61 +53,61 @@ export default function GraphRagTraceViewer({ trace }: Props) {
         </div>
       ) : null}
 
-      <section className="mt-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Planner</div>
+      <section className="rounded-box border border-base-200 bg-base-200/60 p-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Planner</div>
         {trace.planner_steps.length ? (
           <ol className="mt-2 space-y-2">
             {trace.planner_steps.map((step) => (
-              <li key={`${step.hop}-${step.subquery}`} className="rounded border border-slate-100 bg-slate-50 p-2">
-                <div className="text-xs font-semibold text-slate-600">{formatHop(step)}</div>
-                {step.notes ? <div className="text-xs text-slate-500">{step.notes}</div> : null}
+              <li key={`${step.hop}-${step.subquery}`} className="rounded-box border border-base-200 bg-base-100 p-2">
+                <div className="text-xs font-semibold text-base-content/80">{formatHop(step)}</div>
+                {step.notes ? <div className="text-xs text-base-content/60">{step.notes}</div> : null}
               </li>
             ))}
           </ol>
         ) : (
-          <p className="text-xs text-slate-500">No planner steps recorded.</p>
+          <p className="text-xs text-base-content/60">No planner steps recorded.</p>
         )}
       </section>
 
-      <section className="mt-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Retrieval hits</div>
+      <section className="rounded-box border border-base-200 bg-base-200/60 p-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Retrieval hits</div>
         {trace.retrieval_hits.length ? (
           <ul className="mt-2 space-y-2">
             {trace.retrieval_hits.map((hit, idx) => (
-              <li key={`${hit.doc_id ?? "doc"}-${idx}`} className="rounded border border-slate-100 bg-slate-50 p-2">
-                <div className="text-xs text-slate-500">
+              <li key={`${hit.doc_id ?? "doc"}-${idx}`} className="rounded-box border border-base-200 bg-base-100 p-2">
+                <div className="text-xs text-base-content/60">
                   Rank {hit.rank ?? idx + 1} · {hit.source ?? hit.doc_id ?? "unknown source"}
                 </div>
                 {hit.score !== undefined && hit.score !== null ? (
-                  <div className="text-[11px] text-slate-400">Score {hit.score.toFixed(3)}</div>
+                  <div className="text-[11px] text-base-content/50">Score {hit.score.toFixed(3)}</div>
                 ) : null}
-                {hit.snippet ? <div className="text-sm text-slate-900">{hit.snippet}</div> : null}
+                {hit.snippet ? <div className="text-sm text-base-content">{hit.snippet}</div> : null}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-slate-500">Retrieval did not return usable context.</p>
+          <p className="text-xs text-base-content/60">Retrieval did not return usable context.</p>
         )}
       </section>
 
-      <section className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="rounded border border-slate-100 bg-slate-50 p-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Verification</div>
+      <section className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-box border border-base-200 bg-base-200/60 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Verification</div>
           {trace.verification ? (
-            <div className="mt-2 text-sm text-slate-900">
+            <div className="mt-2 text-sm text-base-content">
               <div className="font-semibold capitalize">{trace.verification.verdict}</div>
               {trace.verification.reason ? (
-                <div className="text-xs text-slate-600">{trace.verification.reason}</div>
+                <div className="text-xs text-base-content/70">{trace.verification.reason}</div>
               ) : null}
             </div>
           ) : (
-            <p className="text-xs text-slate-500">No verification performed.</p>
+            <p className="text-xs text-base-content/60">No verification performed.</p>
           )}
         </div>
-        <div className="rounded border border-slate-100 bg-slate-50 p-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Synthesis notes</div>
+        <div className="rounded-box border border-base-200 bg-base-200/60 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Synthesis notes</div>
           {trace.synthesis_notes.length ? (
-            <ul className="mt-2 space-y-1 text-xs text-slate-600">
+            <ul className="mt-2 space-y-1 text-xs text-base-content/80">
               {trace.synthesis_notes.map((note) => (
                 <li key={`${note.step}-${note.notes ?? ""}`}>
                   <span className="font-semibold">{note.step}:</span> {note.notes ?? "No details."}
@@ -115,7 +115,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-slate-500">No synthesis notes recorded.</p>
+            <p className="text-xs text-base-content/60">No synthesis notes recorded.</p>
           )}
         </div>
       </section>
