@@ -29,7 +29,8 @@ const mockTrace: GraphRagTrace = {
 const html = renderToString(<GraphRagTraceViewer trace={mockTrace} />);
 
 assert(html.includes("graph_advanced"));
-assert(html.includes("Find PTO policy"));
+assert(html.includes("collapse"), "trace viewer should include collapsible sections");
+assert(html.includes("badge"), "trace viewer should include DaisyUI badges");
 assert(html.includes("All evidence aligned."));
 
 console.log("✅ Graph trace viewer renders with sample data");

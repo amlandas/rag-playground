@@ -199,6 +199,13 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
           onLoad={handleScriptLoad}
         />
       ) : null}
+      {error ? (
+        <div className="toast toast-end z-50">
+          <div className="alert alert-error text-xs shadow">
+            <span>{error}</span>
+          </div>
+        </div>
+      ) : null}
       {children}
     </AuthContext.Provider>
   );
