@@ -301,9 +301,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }, []);
 
   const confidenceStyles: Record<ConfidenceLevel, string> = {
-    high: "border-emerald-300 bg-emerald-50 text-emerald-700",
-    medium: "border-amber-300 bg-amber-50 text-amber-700",
-    low: "border-rose-300 bg-rose-50 text-rose-700",
+    high: "badge-success",
+    medium: "badge-warning",
+    low: "badge-error",
   };
   const confidenceLabels: Record<ConfidenceLevel, string> = {
     high: "High",
@@ -312,11 +312,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
   };
 
   const modeButtonClass = (value: AnswerMode) =>
-    `px-3 py-1 text-xs font-medium transition ${
-      answerMode === value
-        ? "bg-black text-white"
-        : "bg-white text-gray-600 hover:bg-gray-100"
-    }`;
+    `btn btn-xs ${answerMode === value ? "btn-primary" : "btn-ghost"}`;
 
   const renderMarkdown = (value: string, fallback: string) =>
     value ? (
@@ -324,7 +320,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
         {value}
       </ReactMarkdown>
     ) : (
-      <p className="text-gray-500">{fallback}</p>
+      <p className="text-base-content/60">{fallback}</p>
     );
 
   const canBuild =
@@ -671,682 +667,734 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }, [authEnabled, user?.is_admin, loadAdminData]);
 
   return (
-    <main className="grid min-h-screen grid-cols-12 gap-4 px-4 py-4">
-      <div className="col-span-12 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-lg font-semibold">RAG Playground</div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Mode:</span>
-            <select
-              value={mode}
-              onChange={(event) => setMode(event.target.value as "simple" | "advanced" | "graph")}
-              className="rounded border px-2 py-1 text-sm"
-            >
-              <option value="simple">Simple</option>
-              <option value="advanced">Advanced (A/B)</option>
-              {GRAPH_MODE_ENABLED ? <option value="graph">Graph RAG (multi-stage)</option> : null}
-            </select>
-            <span className="text-xs rounded-full border px-2 py-0.5 text-gray-600">
-              Ephemeral • auto-cleans after 30m idle
-            </span>
+    <main className="min-h-[calc(100vh-4rem)] bg-base-200 px-4 py-6 lg:py-10">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-12 gap-4">
+      <section className="col-span-12 card bg-base-100 shadow-xl">
+        <div className="card-body space-y-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">Playground</p>
+              <h1 className="text-3xl font-bold text-base-content">RAG Playground</h1>
+              <p className="text-sm text-base-content/70">
+                Upload, configure, and compare Simple, A/B, and Graph RAG answers.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <MetricsDrawer />
+              <HealthBadge />
+              {authEnabled ? (
+                user ? (
+                  <div className="flex items-center gap-2 rounded-full border border-base-300 bg-base-200 px-3 py-1 text-xs">
+                    <span className="font-semibold">{user.email}</span>
+                    {user.is_admin ? <span className="badge badge-success badge-outline">Admin</span> : null}
+                    <button
+                      onClick={() => signOut()}
+                      className="btn btn-ghost btn-xs"
+                      disabled={authLoading}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => signIn()}
+                    className="btn btn-primary btn-sm"
+                    disabled={authLoading}
+                  >
+                    {authLoading ? "Loading…" : (
+                      <span className="inline-flex items-center gap-2">
+                        <GoogleIcon className="h-4 w-4" />
+                        Sign in with Google
+                      </span>
+                    )}
+                  </button>
+                )
+              ) : null}
+            </div>
           </div>
-          <MetricsDrawer />
-          <HealthBadge />
-          {authEnabled ? (
-            user ? (
-              <div className="flex items-center gap-3 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span className="uppercase tracking-wide text-[10px] text-gray-500">Signed in as</span>
-                  <span className="max-w-[180px] truncate font-semibold text-gray-900" title={user.email}>
-                    {user.email}
-                  </span>
-                </div>
-                {user.is_admin ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                    Admin
-                  </span>
-                ) : null}
-                <button
-                  onClick={() => signOut()}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-800"
-                  disabled={authLoading}
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="tabs tabs-boxed text-sm">
               <button
                 type="button"
-                onClick={() => signIn()}
-                className="flex items-center gap-2 rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-900 disabled:opacity-60"
-                disabled={authLoading}
+                className={`tab ${mode === "simple" ? "tab-active" : ""}`}
+                onClick={() => setMode("simple")}
               >
-                <GoogleIcon className="h-4 w-4" />
-                <span>{authLoading ? "Loading…" : "Sign in with Google"}</span>
+                Simple
               </button>
-            )
-          ) : null}
-      </div>
-    </div>
-      <section className="col-span-12 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-800">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">API status</h2>
-            <p className="text-xs text-gray-500">Using NEXT_PUBLIC_API_BASE_URL for all requests.</p>
+              <button
+                type="button"
+                className={`tab ${mode === "advanced" ? "tab-active" : ""}`}
+                onClick={() => setMode("advanced")}
+              >
+                A/B
+              </button>
+              {GRAPH_MODE_ENABLED ? (
+                <button
+                  type="button"
+                  className={`tab ${mode === "graph" ? "tab-active" : ""}`}
+                  onClick={() => setMode("graph")}
+                >
+                  Graph
+                </button>
+              ) : null}
+            </div>
+            <span className="badge badge-outline badge-sm">
+              Ephemeral session · auto-cleans after 30m idle
+            </span>
+            <span className="badge badge-outline badge-sm">Client ID prefix: {clientIdPrefix}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              void checkApiStatus();
-            }}
-            className="rounded border px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
-            disabled={apiStatus.state === "checking"}
-          >
-            {apiStatus.state === "checking" ? "Checking…" : "Refresh API status"}
-          </button>
         </div>
-        <dl className="mt-3 grid grid-cols-1 gap-3 text-xs text-gray-700 sm:grid-cols-2">
-          <div>
-            <dt className="font-semibold text-gray-600">Base URL</dt>
-            <dd className="break-words">{apiBaseUrl}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold text-gray-600">Storage backend</dt>
-            <dd>{gcsIngestionEffective ? "Cloud-backed (GCS)" : "In-memory"}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold text-gray-600">Connectivity</dt>
-            <dd
-              className={
-                apiStatus.state === "ok"
-                  ? "text-emerald-700"
-                  : apiStatus.state === "error"
-                    ? "text-red-600"
-                    : "text-gray-600"
-              }
-            >
-              {apiStatus.state === "ok"
-                ? apiStatus.detail
-                : apiStatus.state === "error"
-                  ? `unreachable — ${apiStatus.detail}`
-                  : "checking…"}
-            </dd>
-          </div>
-        </dl>
-        {apiStatus.state === "error" ? (
-          <p className="mt-2 text-xs text-red-600">API check failed: {apiStatus.detail}</p>
-        ) : null}
-
-        {mode === "graph" ? (
-          <div className="mt-3 grid gap-3 rounded-lg border border-dashed border-gray-300 p-3 text-xs text-gray-700 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="font-semibold text-gray-600">Top-k passages</label>
-              <input
-                type="number"
-                min={1}
-                max={12}
-                value={graphSettings.k}
-                onChange={(event) =>
-                  setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
-                }
-                className="w-full rounded border px-2 py-1"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-semibold text-gray-600">Max graph hops</label>
-              <input
-                type="number"
-                min={1}
-                max={4}
-                value={graphSettings.maxHops}
-                onChange={(event) =>
-                  setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
-                }
-                className="w-full rounded border px-2 py-1"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-semibold text-gray-600">Temperature</label>
-              <input
-                type="number"
-                step={0.1}
-                min={0}
-                max={1}
-                value={graphSettings.temperature}
-                onChange={(event) =>
-                  setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
-                }
-                className="w-full rounded border px-2 py-1"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-semibold text-gray-600">Rerank strategy</label>
-              <select
-                value={graphSettings.rerank}
-                onChange={(event) =>
-                  setGraphSettings((prev) => ({ ...prev, rerank: event.target.value as "ce" | "llm" }))
-                }
-                className="w-full rounded border px-2 py-1"
-              >
-                <option value="ce">Cross-encoder</option>
-                <option value="llm" disabled={!LLM_RERANK_ALLOWED}>
-                  LLM rerank {LLM_RERANK_ALLOWED ? "" : "(disabled)"}
-                </option>
-              </select>
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="font-semibold text-gray-600">Verification</label>
-              <select
-                value={graphSettings.verificationMode}
-                onChange={(event) =>
-                  setGraphSettings((prev) => ({
-                    ...prev,
-                    verificationMode: event.target.value as "none" | "ragv" | "llm",
-                  }))
-                }
-                className="w-full rounded border px-2 py-1"
-              >
-                <option value="none">Skip verification</option>
-                <option value="ragv">RAG-V cross-check</option>
-                <option value="llm" disabled={!FACT_CHECK_LLM_ALLOWED}>
-                  Fact-check LLM {FACT_CHECK_LLM_ALLOWED ? "" : "(disabled)"}
-                </option>
-              </select>
-            </div>
-          </div>
-        ) : null}
       </section>
-      {authEnabled ? (
-        <div className="col-span-12 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
+      <section className="col-span-12 card bg-base-100 shadow">
+        <div className="card-body space-y-4 text-sm text-base-content">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Auth diagnostics</h2>
-              <p className="text-xs text-gray-500">Client-side session information</p>
+              <h2 className="text-base font-semibold">API status</h2>
+              <p className="text-xs text-base-content/70">
+                Using NEXT_PUBLIC_API_BASE_URL for all requests.
+              </p>
             </div>
             <button
               type="button"
-              onClick={handleRefreshSession}
-              className="rounded border px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
-              disabled={refreshingSession}
+              onClick={() => {
+                void checkApiStatus();
+              }}
+              className="btn btn-outline btn-xs"
+              disabled={apiStatus.state === "checking"}
             >
-              {refreshingSession ? "Refreshing…" : "Refresh session"}
+              {apiStatus.state === "checking" ? "Checking…" : "Refresh"}
             </button>
           </div>
-          <dl className="mt-3 grid grid-cols-1 gap-3 text-xs text-gray-700 sm:grid-cols-2 md:grid-cols-3">
-            <div>
-              <dt className="font-semibold text-gray-600">Auth enabled</dt>
-              <dd>{String(authEnabled)}</dd>
+          <dl className="grid grid-cols-1 gap-3 text-xs text-base-content/80 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-box bg-base-200/60 p-3">
+              <dt className="text-xs font-semibold uppercase text-base-content/60">Base URL</dt>
+              <dd className="break-words text-base-content">{apiBaseUrl}</dd>
             </div>
-            <div>
-              <dt className="font-semibold text-gray-600">Client ID prefix</dt>
+            <div className="rounded-box bg-base-200/60 p-3">
+              <dt className="text-xs font-semibold uppercase text-base-content/60">Storage backend</dt>
+              <dd>{gcsIngestionEffective ? "Cloud-backed (GCS)" : "In-memory"}</dd>
+            </div>
+            <div className="rounded-box bg-base-200/60 p-3">
+              <dt className="text-xs font-semibold uppercase text-base-content/60">Connectivity</dt>
+              <dd
+                className={
+                  apiStatus.state === "ok"
+                    ? "text-success"
+                    : apiStatus.state === "error"
+                      ? "text-error"
+                      : "text-base-content/60"
+                }
+              >
+                {apiStatus.state === "ok"
+                  ? apiStatus.detail
+                  : apiStatus.state === "error"
+                    ? `unreachable — ${apiStatus.detail}`
+                    : "checking…"}
+              </dd>
+            </div>
+            <div className="rounded-box bg-base-200/60 p-3">
+              <dt className="text-xs font-semibold uppercase text-base-content/60">Client ID prefix</dt>
               <dd>{clientIdPrefix}</dd>
             </div>
-            <div>
-              <dt className="font-semibold text-gray-600">Authenticated</dt>
-              <dd>{String(!!user)}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold text-gray-600">Email</dt>
-              <dd>{user?.email ?? "-"}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold text-gray-600">Is admin</dt>
-              <dd>{String(user?.is_admin ?? false)}</dd>
-            </div>
           </dl>
-          {authError ? (
-            <p className="mt-2 text-xs text-red-600">Authentication error: {authError}</p>
+          {apiStatus.state === "error" ? (
+            <div className="alert alert-error text-xs">
+              API check failed: {apiStatus.detail}
+            </div>
+          ) : null}
+
+          {mode === "graph" ? (
+            <div className="mt-4 rounded-box border border-dashed border-base-300 bg-base-100 p-4 text-xs text-base-content/80 md:grid md:grid-cols-2 md:gap-4">
+              <div className="space-y-1">
+                <label className="font-semibold">Top-k passages</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={graphSettings.k}
+                  onChange={(event) =>
+                    setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
+                  }
+                  className="input input-bordered input-sm w-full"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold">Max graph hops</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={4}
+                  value={graphSettings.maxHops}
+                  onChange={(event) =>
+                    setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
+                  }
+                  className="input input-bordered input-sm w-full"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold">Temperature</label>
+                <input
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  max={1}
+                  value={graphSettings.temperature}
+                  onChange={(event) =>
+                    setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
+                  }
+                  className="input input-bordered input-sm w-full"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold">Rerank strategy</label>
+                <select
+                  value={graphSettings.rerank}
+                  onChange={(event) =>
+                    setGraphSettings((prev) => ({ ...prev, rerank: event.target.value as "ce" | "llm" }))
+                  }
+                  className="select select-bordered select-sm w-full"
+                >
+                  <option value="ce">Cross-encoder</option>
+                  <option value="llm" disabled={!LLM_RERANK_ALLOWED}>
+                    LLM rerank {LLM_RERANK_ALLOWED ? "" : "(disabled)"}
+                  </option>
+                </select>
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="font-semibold">Verification</label>
+                <select
+                  value={graphSettings.verificationMode}
+                  onChange={(event) =>
+                    setGraphSettings((prev) => ({
+                      ...prev,
+                      verificationMode: event.target.value as "none" | "ragv" | "llm",
+                    }))
+                  }
+                  className="select select-bordered select-sm w-full"
+                >
+                  <option value="none">Skip verification</option>
+                  <option value="ragv">RAG-V cross-check</option>
+                  <option value="llm" disabled={!FACT_CHECK_LLM_ALLOWED}>
+                    Fact-check LLM {FACT_CHECK_LLM_ALLOWED ? "" : "(disabled)"}
+                  </option>
+                </select>
+              </div>
+            </div>
           ) : null}
         </div>
+      </section>
+      {authEnabled ? (
+        <section className="col-span-12 card bg-base-100 shadow">
+          <div className="card-body space-y-3 text-sm text-base-content">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold">Auth diagnostics</h2>
+                <p className="text-xs text-base-content/70">Client-side session information</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefreshSession}
+                className="btn btn-outline btn-xs"
+                disabled={refreshingSession}
+              >
+                {refreshingSession ? "Refreshing…" : "Refresh session"}
+              </button>
+            </div>
+            <dl className="grid grid-cols-1 gap-3 text-xs text-base-content/80 sm:grid-cols-2 md:grid-cols-3">
+              <div>
+                <dt className="font-semibold text-base-content/70">Auth enabled</dt>
+                <dd>{String(authEnabled)}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-base-content/70">Client ID prefix</dt>
+                <dd>{clientIdPrefix}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-base-content/70">Authenticated</dt>
+                <dd>{String(!!user)}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-base-content/70">Email</dt>
+                <dd>{user?.email ?? "-"}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-base-content/70">Is admin</dt>
+                <dd>{String(user?.is_admin ?? false)}</dd>
+              </div>
+            </dl>
+            {authError ? (
+              <p className="text-xs text-error">Authentication error: {authError}</p>
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
       {authEnabled && user?.is_admin ? (
-        <section className="col-span-12 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">Admin tools</h2>
-            <button
-              type="button"
-              onClick={handleAdminRefresh}
-              className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
-              disabled={adminLoading}
-            >
-              {adminLoading ? "Refreshing…" : "Refresh data"}
-            </button>
-          </div>
-          {adminError ? <p className="text-xs text-red-700">{adminError}</p> : null}
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded border border-white bg-white/80 p-3 text-xs text-gray-800 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                Metrics summary
-              </h3>
-              {metricsSummary ? (
-                <div className="mt-2 space-y-2">
-                  <div className="flex justify-between">
-                    <span>Total sessions</span>
-                    <span className="font-semibold">{metricsSummary.total_sessions}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total indices</span>
-                    <span className="font-semibold">{metricsSummary.total_indices}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total queries</span>
-                    <span className="font-semibold">{metricsSummary.total_queries}</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-600">Queries by mode</p>
-                    <ul className="mt-1 space-y-1 text-[11px]">
-                      {Object.entries(metricsSummary.queries_by_mode).map(([mode, count]) => (
-                        <li key={mode} className="flex justify-between">
-                          <span>{mode}</span>
-                          <span className="font-semibold">{count}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-600">Queries by confidence</p>
-                    <ul className="mt-1 space-y-1 text-[11px]">
-                      {Object.entries(metricsSummary.queries_by_confidence).map(([level, count]) => (
-                        <li key={level} className="flex justify-between">
-                          <span>{level}</span>
-                          <span className="font-semibold">{count}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="text-[11px] text-gray-600">
-                    <div>Last query: {metricsSummary.last_query_ts ?? "-"}</div>
-                    <div>Last error: {metricsSummary.last_error_ts ?? "-"}</div>
-                    <div>Rerank: {metricsSummary.rerank_strategy_current}</div>
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-2 text-xs text-gray-500">Metrics will appear after activity.</p>
-              )}
+        <section className="col-span-12 card bg-base-100 shadow">
+          <div className="card-body space-y-4 text-sm text-base-content">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold">Admin tools</h2>
+              <button
+                type="button"
+                onClick={handleAdminRefresh}
+                className="btn btn-outline btn-xs"
+                disabled={adminLoading}
+              >
+                {adminLoading ? "Refreshing…" : "Refresh data"}
+              </button>
             </div>
-            <div className="rounded border border-white bg-white/80 p-3 text-xs text-gray-800 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                Health details
-              </h3>
-              {healthDetails ? (
-                <dl className="mt-2 space-y-1 text-[11px]">
-                  <div className="flex justify-between">
-                    <span>Status</span>
-                    <span className="font-semibold">{healthDetails.status}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Effective rerank</span>
-                    <span className="font-semibold">{healthDetails.rerank_strategy_effective}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Configured rerank</span>
-                    <span>{healthDetails.rerank_strategy_configured}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>CE available</span>
-                    <span>{String(healthDetails.ce_available)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>LLM available</span>
-                    <span>{String(healthDetails.llm_available)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Default mode</span>
-                    <span>{healthDetails.answer_mode_default}</span>
-                  </div>
-                  {healthDetails.version ? (
+            {adminError ? <p className="text-xs text-error">{adminError}</p> : null}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-box bg-base-200/70 p-3 text-xs">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+                  Metrics summary
+                </h3>
+                {metricsSummary ? (
+                  <div className="mt-2 space-y-2">
                     <div className="flex justify-between">
-                      <span>Version</span>
-                      <span>{healthDetails.version}</span>
+                      <span>Total sessions</span>
+                      <span className="font-semibold">{metricsSummary.total_sessions}</span>
                     </div>
-                  ) : null}
-                </dl>
-              ) : (
-                <p className="mt-2 text-xs text-gray-500">Health details unavailable.</p>
-              )}
+                    <div className="flex justify-between">
+                      <span>Total indices</span>
+                      <span className="font-semibold">{metricsSummary.total_indices}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total queries</span>
+                      <span className="font-semibold">{metricsSummary.total_queries}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-base-content/70">Queries by mode</p>
+                      <ul className="mt-1 space-y-1 text-[11px]">
+                        {Object.entries(metricsSummary.queries_by_mode).map(([mode, count]) => (
+                          <li key={mode} className="flex justify-between">
+                            <span>{mode}</span>
+                            <span className="font-semibold">{count}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-base-content/70">Queries by confidence</p>
+                      <ul className="mt-1 space-y-1 text-[11px]">
+                        {Object.entries(metricsSummary.queries_by_confidence).map(([level, count]) => (
+                          <li key={level} className="flex justify-between">
+                            <span>{level}</span>
+                            <span className="font-semibold">{count}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="text-[11px] text-base-content/60">
+                      <div>Last query: {metricsSummary.last_query_ts ?? "-"}</div>
+                      <div>Last error: {metricsSummary.last_error_ts ?? "-"}</div>
+                      <div>Rerank: {metricsSummary.rerank_strategy_current}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-base-content/60">Metrics will appear after activity.</p>
+                )}
+              </div>
+              <div className="rounded-box bg-base-200/70 p-3 text-xs">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+                  Health details
+                </h3>
+                {healthDetails ? (
+                  <dl className="mt-2 space-y-1 text-[11px]">
+                    <div className="flex justify-between">
+                      <span>Status</span>
+                      <span className="font-semibold">{healthDetails.status}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Effective rerank</span>
+                      <span className="font-semibold">{healthDetails.rerank_strategy_effective}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Configured rerank</span>
+                      <span>{healthDetails.rerank_strategy_configured}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CE available</span>
+                      <span>{String(healthDetails.ce_available)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>LLM available</span>
+                      <span>{String(healthDetails.llm_available)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Default mode</span>
+                      <span>{healthDetails.answer_mode_default}</span>
+                    </div>
+                    {healthDetails.version ? (
+                      <div className="flex justify-between">
+                        <span>Version</span>
+                        <span>{healthDetails.version}</span>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-xs text-base-content/60">Health details unavailable.</p>
+                )}
+              </div>
             </div>
           </div>
         </section>
       ) : null}
 
-      <aside className="col-span-3 space-y-4 rounded-xl border p-3">
-        <div>
-          <div className="mb-2 text-sm font-semibold">Files</div>
-          <Uploader
-            disabled={busy !== "idle" || authGateActive}
-            onFilesSelected={handleFilesSelected}
-            onUseSamples={useSamples}
-          />
-          <UploadLimitHint />
-          <div className="mt-3 space-y-1">
-            {filesChosen.length ? (
-              filesChosen.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="truncate text-sm text-gray-700">
-                  • {file.name}
-                </div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-500">No files selected.</div>
-            )}
-          </div>
-          <div className="mt-3">
+      <aside className="col-span-12 space-y-4 lg:col-span-3">
+        <div className="card bg-base-100 shadow">
+          <div className="card-body space-y-4 text-sm text-base-content">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Documents & session</div>
+              {busy !== "idle" ? <LoadingBadge label={busy === "uploading" ? "Uploading" : "Busy"} /> : null}
+            </div>
+            <Uploader
+              disabled={busy !== "idle" || authGateActive}
+              onFilesSelected={handleFilesSelected}
+              onUseSamples={useSamples}
+            />
+            <UploadLimitHint />
+            <div className="text-xs text-base-content/60">Uploads start immediately after selection.</div>
+            <div className="rounded-box border border-dashed border-base-300 bg-base-200/60 p-3 text-sm">
+              {filesChosen.length ? (
+                <ul className="space-y-1">
+                  {filesChosen.map((file, index) => (
+                    <li key={`${file.name}-${index}`} className="truncate">
+                      • {file.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-base-content/60">No files selected.</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-base-content/70">
+              <span className="badge badge-outline">
+                Session: {sessionId ? `${sessionId.slice(0, 8)}…` : "—"}
+              </span>
+              <span className={`badge ${indexed ? "badge-success" : "badge-ghost"}`}>
+                Indexed: {indexed ? "yes" : "no"}
+              </span>
+            </div>
             <button
               onClick={doIndex}
               disabled={!canBuild}
-              className="rounded-lg bg-black px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:opacity-50"
+              className="btn btn-primary btn-sm w-full"
             >
-              {busy === "indexing" ? <LoadingBadge label="Indexing" /> : "Build index"}
+              {busy === "indexing" ? "Indexing…" : "Build index"}
             </button>
-          </div>
-          <div className="mt-2 text-xs text-gray-500">
-            Session: {sessionId ? `${sessionId.slice(0, 8)}…` : "—"} · Indexed: {indexed ? "yes" : "no"}
           </div>
         </div>
 
         {mode === "advanced" ? (
-          <div>
-            <div className="mb-2 text-sm font-semibold">Profiles (A/B)</div>
-            <AdvancedSettings
-              valueA={profileA}
-              valueB={profileB}
-              onChange={(which, next) => (which === "A" ? setProfileA(next) : setProfileB(next))}
-            />
+          <div className="card bg-base-100 shadow">
+            <div className="card-body space-y-3">
+              <div className="text-sm font-semibold">Profiles (A/B)</div>
+              <AdvancedSettings
+                valueA={profileA}
+                valueB={profileB}
+                onChange={(which, next) => (which === "A" ? setProfileA(next) : setProfileB(next))}
+              />
+            </div>
           </div>
         ) : null}
       </aside>
 
-      <section
-        className={`rounded-xl border p-3 ${mode === "simple" ? "col-span-6" : "col-span-9"}`}
-      >
-        <div className="mb-2 text-sm font-semibold">Ask a question</div>
-        <div className="flex gap-2">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="e.g., What is our PTO policy?"
-            className="w-full rounded-lg border px-3 py-2 outline-none focus:ring"
-          />
-          {mode === "simple" && (
-            <button
-              onClick={doQuerySimple}
-              className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
-              disabled={!canQuery}
-            >
-              {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
-            </button>
-          )}
-          {mode === "advanced" && (
-            <button
-              onClick={doCompare}
-              className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
-              disabled={!canCompare}
-            >
-              {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
-            </button>
-          )}
-          {mode === "graph" && (
-            <button
-              onClick={() => {
-                void runGraphQuery();
-              }}
-              className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
-              disabled={
-                !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
-              }
-            >
-              {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
-            </button>
-          )}
-        </div>
-        {mode !== "graph" ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">Answer mode:</span>
-              <div className="flex overflow-hidden rounded-lg border border-gray-300">
-                <button
-                  type="button"
-                  className={modeButtonClass("grounded")}
-                  onClick={() => setAnswerMode("grounded")}
-                >
-                  Document-only
-                </button>
-                <button
-                  type="button"
-                  className={modeButtonClass("blended")}
-                  onClick={() => setAnswerMode("blended")}
-                >
-                  Doc + world context
-                </button>
-              </div>
-            </div>
-            <div className="text-[11px] text-gray-500">
-              World notes appear only in Doc + world context.
-            </div>
-          </div>
-        ) : null}
 
-        {mode === "graph" ? (
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Graph RAG answer</div>
-              {graphResult?.verification ? (
-                <span className="rounded-full border px-2 py-1 text-xs font-semibold text-purple-700">
-                  Verification: {graphResult.verification.verdict}
-                </span>
+      <section
+        className={`col-span-12 space-y-4 ${mode === "simple" ? "lg:col-span-6" : "lg:col-span-9"}`}
+      >
+        <div className="card bg-base-100 shadow">
+          <div className="card-body space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-semibold">Ask a question</div>
+              {mode !== "graph" ? (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+                  <span className="font-semibold text-base-content">Answer mode</span>
+                  <div className="join">
+                    <button
+                      type="button"
+                      className={`${modeButtonClass("grounded")} join-item`}
+                      onClick={() => setAnswerMode("grounded")}
+                    >
+                      Document-only
+                    </button>
+                    <button
+                      type="button"
+                      className={`${modeButtonClass("blended")} join-item`}
+                      onClick={() => setAnswerMode("blended")}
+                    >
+                      Doc + world context
+                    </button>
+                  </div>
+                </div>
               ) : null}
             </div>
-            <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[200px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
-              {graphResult ? renderMarkdown(graphResult.answer, "Graph RAG answer will appear here.") : "Graph RAG answer will appear here."}
-            </div>
-            {graphResult?.verification ? (
-              <div className="rounded-lg border px-3 py-2 text-xs text-gray-600">
-                <div className="font-semibold text-gray-700">Verification</div>
-                <div>Mode: {graphResult.verification.mode}</div>
-                <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
-                <div className="text-gray-700">{graphResult.verification.notes}</div>
+            <div className="flex flex-col gap-3 md:flex-row">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="e.g., What is our PTO policy?"
+                className="input input-bordered w-full"
+              />
+              <div className="flex flex-shrink-0 gap-2">
+                {mode === "simple" ? (
+                  <button
+                    type="button"
+                    onClick={doQuerySimple}
+                    className="btn btn-primary"
+                    disabled={!canQuery}
+                  >
+                    {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
+                  </button>
+                ) : null}
+                {mode === "advanced" ? (
+                  <button
+                    type="button"
+                    onClick={doCompare}
+                    className="btn btn-primary"
+                    disabled={!canCompare}
+                  >
+                    {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
+                  </button>
+                ) : null}
+                {mode === "graph" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void runGraphQuery();
+                    }}
+                    className="btn btn-primary"
+                    disabled={
+                      !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
+                    }
+                  >
+                    {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
+                  </button>
+                ) : null}
               </div>
+            </div>
+            {mode !== "graph" ? (
+              <p className="text-xs text-base-content/60">World notes appear only in Doc + world context.</p>
             ) : null}
           </div>
-        ) : null}
+        </div>
 
         {mode === "graph" ? (
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setShowGraphTrace((prev) => !prev)}
-                disabled={!graphTrace}
-                className="rounded border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {showGraphTrace ? "Hide trace" : "Show trace"}
-              </button>
-              {graphTrace ? (
-                <span className="text-[11px] text-gray-500">Trace ID: {graphTrace.request_id.slice(0, 8)}…</span>
-              ) : (
-                <span className="text-[11px] text-gray-400">Trace unavailable for this run.</span>
-              )}
+          <>
+            <div className="card bg-base-100 shadow">
+              <div className="card-body space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-semibold">Graph RAG answer</div>
+                  {graphResult?.verification ? (
+                    <span className="badge badge-outline badge-info">
+                      Verification: {graphResult.verification.verdict}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
+                  {graphResult
+                    ? renderMarkdown(graphResult.answer, "Graph RAG answer will appear here.")
+                    : "Graph RAG answer will appear here."}
+                </div>
+                {graphResult?.verification ? (
+                  <div className="rounded-box border border-base-300 bg-base-200/60 p-3 text-xs text-base-content/80">
+                    <div className="font-semibold text-base-content">Verification</div>
+                    <div>Mode: {graphResult.verification.mode}</div>
+                    <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
+                    <div className="text-base-content/70">{graphResult.verification.notes}</div>
+                  </div>
+                ) : null}
+              </div>
             </div>
-            {showGraphTrace && graphTrace ? (
-              <GraphRagTraceViewer trace={graphTrace} />
+            {graphResult ? (
+              <div className="card bg-base-100 shadow">
+                <div className="card-body space-y-4 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold">Diagnostics</div>
+                    <button
+                      type="button"
+                      onClick={() => setShowGraphTrace((prev) => !prev)}
+                      disabled={!graphTrace}
+                      className="btn btn-outline btn-xs"
+                    >
+                      {showGraphTrace ? "Hide trace" : "Show trace"}
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {graphResult.subqueries.map((sub) => (
+                      <div key={sub.query} className="rounded-box border border-base-200 bg-base-200/60 p-3">
+                        <div className="text-sm font-semibold text-base-content">{sub.query}</div>
+                        <div className="text-base-content/70">{sub.answer}</div>
+                        <div className="text-[11px] text-base-content/60">
+                          Hops: {sub.metrics.hops_used ?? "-"} · Graph hits: {sub.metrics.graph_candidates ?? "-"} · Hybrid hits: {sub.metrics.hybrid_candidates ?? "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-box border border-base-200 bg-base-200/40 p-3 text-xs text-base-content/70">
+                    {graphTrace ? (
+                      <span>Trace ID: {graphTrace.request_id.slice(0, 8)}…</span>
+                    ) : (
+                      <span>Trace unavailable for this run.</span>
+                    )}
+                  </div>
+                  {showGraphTrace && graphTrace ? (
+                    <div className="rounded-box border border-base-200 bg-base-100 p-3">
+                      <GraphRagTraceViewer trace={graphTrace} />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
-          </div>
+          </>
         ) : null}
 
         {mode === "simple" ? (
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-semibold">Answer</div>
-              {confidence ? (
-                <span
-                  className={`rounded-full border px-2 py-1 font-medium ${confidenceStyles[confidence]}`}
+          <div className="card bg-base-100 shadow">
+            <div className="card-body space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold">Answer</div>
+                {confidence ? (
+                  <span className={`badge badge-outline ${confidenceStyles[confidence]}`}>
+                    Confidence: {confidenceLabels[confidence]}
+                  </span>
+                ) : null}
+              </div>
+              <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
+                {renderMarkdown(answer, "Answer stream will appear here.")}
+              </div>
+              <div className="flex flex-wrap justify-end gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => copyMarkdown(answer)}
+                  disabled={!answer}
+                  className="btn btn-outline btn-xs"
                 >
-                  Confidence: {confidenceLabels[confidence]}
-                </span>
-              ) : null}
-            </div>
-            <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[200px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
-              {renderMarkdown(answer, "Answer stream will appear here.")}
-            </div>
-            <div className="mt-2 flex justify-end gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => copyMarkdown(answer)}
-                disabled={!answer}
-                className="rounded border px-2 py-1 disabled:opacity-50"
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadMarkdown(answer, "answer.md")}
-                disabled={!answerComplete || !answer}
-                className="rounded border px-2 py-1 disabled:opacity-50"
-              >
-                Download .md
-              </button>
-            </div>
-            <div className="mt-2">
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadMarkdown(answer, "answer.md")}
+                  disabled={!answerComplete || !answer}
+                  className="btn btn-outline btn-xs"
+                >
+                  Download .md
+                </button>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                <div className="rounded-box border border-base-300 bg-base-200/60 p-3">
+                  {sources.length ? (
+                    <ul className="space-y-2 text-sm">
+                      {sources.map((source) => (
+                        <li key={source.rank}>
+                          <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                          <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-base-content/60">Retrieved chunks will show here.</p>
+                  )}
+                </div>
+              </div>
               <FeedbackBar queryId={queryId} />
             </div>
           </div>
         ) : null}
 
         {mode === "advanced" ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <div className="mb-1 text-sm font-semibold">Answer — Profile A</div>
-              <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[160px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
-                {renderMarkdown(answerA, "Answer A stream will appear here.")}
-              </div>
-              <div className="mt-2 flex justify-end gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => copyMarkdown(answerA)}
-                  disabled={!answerA}
-                  className="rounded border px-2 py-1 disabled:opacity-50"
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadMarkdown(answerA, "answer-profile-a.md")}
-                  disabled={!answerAComplete || !answerA}
-                  className="rounded border px-2 py-1 disabled:opacity-50"
-                >
-                  Download .md
-                </button>
-              </div>
-              <div className="mt-2 rounded border p-2">
-                <div className="mb-1 text-xs font-semibold uppercase text-gray-500">Sources — A</div>
-                {retrievedA.length ? (
-                  <ul className="space-y-2">
-                    {retrievedA.map((source) => (
-                      <li key={source.rank} className="text-sm">
-                        <div className="font-medium">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                        <div className="text-gray-700 line-clamp-4">{source.text}</div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-sm text-gray-500">—</div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 text-sm font-semibold">Answer — Profile B</div>
-              <div className="answer-body overflow-auto overflow-x-hidden max-h-[60vh] min-h-[160px] rounded-lg border p-3 text-sm text-gray-800 leading-relaxed">
-                {renderMarkdown(answerB, "Answer B stream will appear here.")}
-              </div>
-              <div className="mt-2 flex justify-end gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => copyMarkdown(answerB)}
-                  disabled={!answerB}
-                  className="rounded border px-2 py-1 disabled:opacity-50"
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadMarkdown(answerB, "answer-profile-b.md")}
-                  disabled={!answerBComplete || !answerB}
-                  className="rounded border px-2 py-1 disabled:opacity-50"
-                >
-                  Download .md
-                </button>
-              </div>
-              <div className="mt-2 rounded border p-2">
-                <div className="mb-1 text-xs font-semibold uppercase text-gray-500">Sources — B</div>
-                {retrievedB.length ? (
-                  <ul className="space-y-2">
-                    {retrievedB.map((source) => (
-                      <li key={source.rank} className="text-sm">
-                        <div className="font-medium">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                        <div className="text-gray-700 line-clamp-4">{source.text}</div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-sm text-gray-500">—</div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {mode === "graph" && graphResult ? (
-          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="font-semibold text-gray-800">Diagnostics</div>
-            </div>
-            <div className="space-y-3">
-              {graphResult.subqueries.map((sub) => (
-                <div key={sub.query} className="rounded border border-white bg-white/70 p-2 shadow-sm">
-                  <div className="text-sm font-semibold text-gray-800">{sub.query}</div>
-                  <div className="text-gray-600">{sub.answer}</div>
-                  <div className="mt-1 text-[11px] text-gray-500">
-                    Hops: {sub.metrics.hops_used ?? "-"} · Graph hits: {sub.metrics.graph_candidates ?? "-"} · Hybrid hits: {sub.metrics.hybrid_candidates ?? "-"}
+          <div className="card bg-base-100 shadow">
+            <div className="card-body space-y-4">
+              <div className="text-sm font-semibold">A/B answers</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {[
+                  { label: "Answer — Profile A", value: answerA, complete: answerAComplete, sources: retrievedA, fileName: "answer-profile-a.md" },
+                  { label: "Answer — Profile B", value: answerB, complete: answerBComplete, sources: retrievedB, fileName: "answer-profile-b.md" },
+                ].map((item) => (
+                  <div key={item.label} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
+                    <div className="text-sm font-semibold">{item.label}</div>
+                    <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
+                      {renderMarkdown(item.value, `${item.label} stream will appear here.`)}
+                    </div>
+                    <div className="flex justify-end gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => copyMarkdown(item.value)}
+                        disabled={!item.value}
+                        className="btn btn-outline btn-xs"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadMarkdown(item.value, item.fileName)}
+                        disabled={!item.complete || !item.value}
+                        className="btn btn-outline btn-xs"
+                      >
+                        Download .md
+                      </button>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                      <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
+                        {item.sources.length ? (
+                          <ul className="space-y-2 text-sm">
+                            {item.sources.map((source) => (
+                              <li key={`${item.label}-${source.rank}`}>
+                                <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                                <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-base-content/60">—</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         ) : null}
 
         {error ? (
-          <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">
-            {error}
-          </div>
+          <div className="alert alert-error">{error}</div>
         ) : null}
       </section>
-
       {mode === "simple" ? (
-        <aside className="col-span-3 rounded-xl border p-3">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="text-sm font-semibold">Explainability</div>
-            <span className="rounded-full border px-2 py-0.5 text-xs">Simple Mode</span>
-          </div>
-          <div>
-            <div className="mb-1 text-xs font-semibold uppercase text-gray-500">Sources</div>
-            <div className="rounded-lg border p-2">
-              {sources.length ? (
-                <ul className="space-y-2">
-                  {sources.map((source) => (
-                    <li key={source.rank} className="text-sm">
-                      <div className="font-medium">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                      <div className="text-gray-700 line-clamp-4">{source.text}</div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-sm text-gray-500">Retrieved chunks will show here.</div>
-              )}
+        <aside className="col-span-12 space-y-4 lg:col-span-3">
+          <div className="card bg-base-100 shadow">
+            <div className="card-body space-y-3 text-sm text-base-content">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">Explainability</div>
+                <span className="badge badge-outline badge-sm">Simple mode</span>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                <div className="rounded-box border border-base-300 bg-base-200/60 p-2">
+                  {sources.length ? (
+                    <ul className="space-y-2">
+                      {sources.map((source) => (
+                        <li key={source.rank} className="text-sm">
+                          <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                          <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-sm text-base-content/60">Retrieved chunks will show here.</div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </aside>
       ) : null}
+      </div>
     </main>
   );
 }
