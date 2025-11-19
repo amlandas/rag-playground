@@ -54,6 +54,7 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
         }}
       />
       <div
+        data-tour-id="uploader-dropzone"
         className={`rounded-box border-2 border-dashed ${
           isDragging ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50"
         } px-4 py-6 text-center text-sm transition hover:border-primary hover:bg-primary/10`}
@@ -90,6 +91,7 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
       </div>
       <div className="flex flex-wrap gap-2">
         <button
+          data-tour-id="uploader-samples"
           onClick={handleUseSamples}
           disabled={disabled}
           className="btn btn-ghost btn-outline btn-xs sm:btn-sm"
