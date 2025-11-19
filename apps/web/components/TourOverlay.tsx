@@ -1,43 +1,15 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useTour } from "./TourProvider";
+import React, { useMemo } from "react";
+import { useTour, type TargetRect } from "./TourProvider";
 
-type TargetMeta = {
-  rect: DOMRect;
-  isVisible: boolean;
-};
+const CARD_HEIGHT = 190;
+const CARD_MARGIN = 16;
 
 export default function TourOverlay() {
-  const { isActive, currentStep, nextStep, stopTour } = useTour();
-  const [targetMeta, setTargetMeta] = useState<TargetMeta | null>(null);
+  const { isActive, currentStep, targetRect, nextStep, stopTour } = useTour();
 
-  useEffect(() => {
-    if (!currentStep) {
-      setTargetMeta(null);
-      return;
-    }
-
-    const element = document.querySelector(currentStep.targetSelector) as HTMLElement | null;
-    if (!element) {
-      if (currentStep.requireVisible) {
-        nextStep();
-      }
-      setTargetMeta(null);
-      return;
-    }
-
-    const rect = element.getBoundingClientRect();
-    setTargetMeta({ rect, isVisible: true });
-  }, [currentStep, nextStep]);
-
-  const cardStyle = useMemo<React.CSSProperties>(() => {
-    if (!targetMeta || typeof window === "undefined") return {};
-    const { rect } = targetMeta;
-    const top = Math.min(window.innerHeight - 180, rect.bottom + 12);
-    const left = Math.min(Math.max(rect.left + rect.width / 2, 180), window.innerWidth - 20);
-    return { top, left };
-  }, [targetMeta]);
+  const dialogPosition = useMemo(() => computeDialogPosition(targetRect), [targetRect]);
 
   if (!isActive || !currentStep) {
     return null;
@@ -45,12 +17,31 @@ export default function TourOverlay() {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-base-300/60 backdrop-blur-sm pointer-events-none" />
+      <div className="fixed inset-0 z-40 bg-base-100/40 pointer-events-none" />
+      {targetRect ? (
+        <div
+          className="fixed z-50 pointer-events-none rounded-xl border-2 border-primary/70 shadow-[0_0_25px_rgba(0,0,0,0.45)] transition-all duration-200"
+          style={{
+            top: Math.max(targetRect.top - 8, 8),
+            left: Math.max(targetRect.left - 8, 8),
+            width: targetRect.width + 16,
+            height: targetRect.height + 16,
+          }}
+        />
+      ) : null}
       <div
-        className="fixed z-50 w-[90%] max-w-sm left-1/2 -translate-x-1/2 bottom-4 md:bottom-8"
-        style={targetMeta ? { top: cardStyle.top, left: cardStyle.left, transform: "translate(-50%, 0)" } : undefined}
+        className="fixed z-50 w-[90%] max-w-md"
+        style={
+          dialogPosition
+            ? {
+                top: dialogPosition.top,
+                left: dialogPosition.left,
+                width: dialogPosition.width,
+              }
+            : { left: "50%", transform: "translateX(-50%)", bottom: CARD_MARGIN }
+        }
       >
-        <div className="card bg-base-100 shadow-xl border border-base-300">
+        <div className="card bg-base-100 shadow-xl border border-base-300 w-full">
           <div className="card-body space-y-3">
             <h3 className="card-title text-sm md:text-base">{currentStep.title}</h3>
             <p className="text-sm text-base-content/70">{currentStep.body}</p>
@@ -67,4 +58,23 @@ export default function TourOverlay() {
       </div>
     </>
   );
+}
+
+function computeDialogPosition(rect: TargetRect | null) {
+  if (!rect || typeof window === "undefined") {
+    return null;
+  }
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(360, viewportWidth - CARD_MARGIN * 2);
+  let top = rect.bottom + CARD_MARGIN;
+  if (top + CARD_HEIGHT > viewportHeight - CARD_MARGIN) {
+    top = rect.top - CARD_HEIGHT - CARD_MARGIN;
+  }
+  if (top < CARD_MARGIN) {
+    top = Math.min(viewportHeight - CARD_HEIGHT - CARD_MARGIN, Math.max(CARD_MARGIN, rect.top));
+  }
+  let left = rect.left + rect.width / 2 - width / 2;
+  left = Math.max(CARD_MARGIN, Math.min(left, viewportWidth - width - CARD_MARGIN));
+  return { top, left, width };
 }
