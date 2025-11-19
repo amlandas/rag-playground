@@ -11,11 +11,6 @@ type ThemeName = (typeof THEME_OPTIONS)[number]["value"];
 
 const STORAGE_KEY = "rag-playground-theme";
 
-const supportsDarkScheme = () =>
-  typeof window !== "undefined" &&
-  typeof window.matchMedia === "function" &&
-  window.matchMedia("(prefers-color-scheme: dark)").matches;
-
 function getStoredTheme(): ThemeName | null {
   if (typeof window === "undefined") return null;
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -26,7 +21,7 @@ function getStoredTheme(): ThemeName | null {
 function resolveInitialTheme(): ThemeName {
   const stored = getStoredTheme();
   if (stored) return stored;
-  return supportsDarkScheme() ? "forest" : "light";
+  return "light";
 }
 
 export default function ThemeSwitcher() {
