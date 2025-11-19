@@ -11,6 +11,22 @@ body[data-theme-ready="false"] {
   transition: none;
 }
 
+.card-soft-primary {
+  background-color: hsl(var(--p) / 0.08);
+}
+
+.card-soft-secondary {
+  background-color: hsl(var(--s) / 0.08);
+}
+
+.card-soft-accent {
+  background-color: hsl(var(--a) / 0.08);
+}
+
+.card-soft-neutral {
+  background-color: hsl(var(--b2) / 0.35);
+}
+
 /* ---- RAG answer formatting ---- */
 .answer-body {
   white-space: pre-wrap;

@@ -684,9 +684,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }, [authEnabled, user?.is_admin, loadAdminData]);
 
   return (
-    <main className="flex flex-1 bg-base-200">
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-12 gap-6 px-4 py-8">
-      <section className="col-span-12 card bg-base-100 shadow-xl">
+    <main className="min-h-[calc(100vh-4rem)] bg-base-200">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8">
+        <div className="grid grid-cols-12 gap-6">
+      <section className="col-span-12 card card-soft-primary shadow-xl">
         <div className="card-body space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -763,8 +764,439 @@ const [queryId, setQueryId] = useState<string | null>(null);
           </div>
         </div>
       </section>
-      <section className="col-span-12 card bg-base-100 shadow">
-        <div className="card-body space-y-4 text-sm text-base-content">
+      <section className="col-span-12 space-y-4 lg:col-span-6">
+        <div className="card card-soft-secondary shadow">
+          <div className="card-body space-y-4 text-sm text-base-content">
+            <div className="flex items-center justify-between">
+              <h3 className="card-title text-base text-base-content">Documents & session</h3>
+              {busy !== "idle" ? <LoadingBadge label={busy === "uploading" ? "Uploading" : "Busy"} /> : null}
+            </div>
+            <Uploader
+              disabled={busy !== "idle" || authGateActive}
+              onFilesSelected={handleFilesSelected}
+              onUseSamples={useSamples}
+            />
+            <UploadLimitHint />
+            <div className="text-xs text-base-content/60">Uploads start immediately after selection.</div>
+            <div className="rounded-box border border-dashed border-base-300 bg-base-200/60 p-3 text-sm">
+              {filesChosen.length ? (
+                <ul className="space-y-1">
+                  {filesChosen.map((file, index) => (
+                    <li key={`${file.name}-${index}`} className="truncate">
+                      • {file.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-base-content/60">No files selected.</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-base-content/70">
+              <span className="badge badge-outline">
+                Session: {sessionId ? `${sessionId.slice(0, 8)}…` : "—"}
+              </span>
+              <span className={`badge ${indexed ? "badge-success" : "badge-ghost"}`}>
+                Indexed: {indexed ? "yes" : "no"}
+              </span>
+            </div>
+            <button
+              onClick={doIndex}
+              disabled={!canBuild}
+              className="btn btn-primary btn-sm w-full"
+              data-tour-id="build-index"
+            >
+              {busy === "indexing" ? "Indexing…" : "Build index"}
+            </button>
+          </div>
+        </div>
+      </section>
+      <section className="col-span-12 space-y-4 lg:col-span-6">
+        <div className="card card-soft-accent shadow">
+          <div className="card-body space-y-6">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="card-title text-base text-base-content">Ask a question</h2>
+                {mode !== "graph" ? (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+                    <span className="font-semibold text-base-content">Answer mode</span>
+                    <div className="join">
+                      <button
+                        type="button"
+                        className={`${modeButtonClass("grounded")} join-item`}
+                        onClick={() => setAnswerMode("grounded")}
+                      >
+                        Document-only
+                      </button>
+                      <button
+                        type="button"
+                        className={`${modeButtonClass("blended")} join-item`}
+                        onClick={() => setAnswerMode("blended")}
+                      >
+                        Doc + world context
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-3 md:flex-row">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="e.g., What is our PTO policy?"
+                className="input input-bordered w-full bg-base-100"
+                data-tour-id="query-input"
+              />
+                <div className="flex flex-shrink-0 gap-2">
+                {mode === "simple" ? (
+                  <button
+                    type="button"
+                    onClick={doQuerySimple}
+                    className="btn btn-primary"
+                    disabled={!canQuery}
+                    data-tour-id="run-button"
+                  >
+                    {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
+                  </button>
+                ) : null}
+                {mode === "advanced" ? (
+                  <button
+                    type="button"
+                    onClick={doCompare}
+                    className="btn btn-primary"
+                    disabled={!canCompare}
+                    data-tour-id="run-button"
+                  >
+                    {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
+                  </button>
+                ) : null}
+                {mode === "graph" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void runGraphQuery();
+                    }}
+                    className="btn btn-primary"
+                    disabled={
+                      !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
+                    }
+                    data-tour-id="run-button"
+                  >
+                    {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
+                  </button>
+                ) : null}
+                </div>
+              </div>
+              {mode === "graph" ? (
+                <div
+                  className="rounded-box border border-dashed border-base-300 bg-base-100/80 p-4 text-xs text-base-content/80 md:grid md:grid-cols-2 md:gap-4"
+                  data-tour-id="graph-settings"
+                >
+                  <div className="space-y-1">
+                    <label className="font-semibold">Top-k passages</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={graphSettings.k}
+                      onChange={(event) =>
+                        setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
+                      }
+                      className="input input-bordered input-sm w-full bg-base-100"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold">Max graph hops</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={graphSettings.maxHops}
+                      onChange={(event) =>
+                        setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
+                      }
+                      className="input input-bordered input-sm w-full bg-base-100"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold">Temperature</label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={1}
+                      value={graphSettings.temperature}
+                      onChange={(event) =>
+                        setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
+                      }
+                      className="input input-bordered input-sm w-full bg-base-100"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold">Rerank strategy</label>
+                    <select
+                      value={graphSettings.rerank}
+                      onChange={(event) =>
+                        setGraphSettings((prev) => ({ ...prev, rerank: event.target.value as "ce" | "llm" }))
+                      }
+                      className="select select-bordered select-sm w-full bg-base-100"
+                    >
+                      <option value="ce">Cross-encoder</option>
+                      <option value="llm" disabled={!LLM_RERANK_ALLOWED}>
+                        LLM rerank {LLM_RERANK_ALLOWED ? "" : "(disabled)"}
+                      </option>
+                    </select>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="font-semibold">Verification</label>
+                    <select
+                      value={graphSettings.verificationMode}
+                      onChange={(event) =>
+                        setGraphSettings((prev) => ({
+                          ...prev,
+                          verificationMode: event.target.value as "none" | "ragv" | "llm",
+                        }))
+                      }
+                      className="select select-bordered select-sm w-full bg-base-100"
+                    >
+                      <option value="none">Skip verification</option>
+                      <option value="ragv">RAG-V cross-check</option>
+                      <option value="llm" disabled={!FACT_CHECK_LLM_ALLOWED}>
+                        Fact-check LLM {FACT_CHECK_LLM_ALLOWED ? "" : "(disabled)"}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+              {mode !== "graph" ? (
+                <p className="text-xs text-base-content/60">World notes appear only in Doc + world context.</p>
+              ) : null}
+            </div>
+            <div className="divider" />
+            <div className="space-y-6">
+
+        {mode === "graph" ? (
+          <div
+            id="mode-panel-graph"
+            role="tabpanel"
+            aria-labelledby="mode-tab-graph"
+            className="space-y-4"
+          >
+            <div className="card card-soft-neutral shadow">
+              <div className="card-body space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="card-title text-base text-base-content">Graph RAG answer</h3>
+                  {graphResult?.verification ? (
+                    <span className="badge badge-outline badge-info">
+                      Verification: {graphResult.verification.verdict}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
+                  {graphResult
+                    ? renderMarkdown(graphResult.answer, "Graph RAG answer will appear here.")
+                    : isGraphLoading
+                      ? <SkeletonBlock lines={5} />
+                      : "Graph RAG answer will appear here."}
+                </div>
+                {graphResult?.verification ? (
+                  <div className="rounded-box border border-base-300 bg-base-200/60 p-3 text-xs text-base-content/80">
+                    <div className="text-xs font-semibold uppercase text-base-content/60">Verification</div>
+                    <div className="text-base-content">Mode: {graphResult.verification.mode}</div>
+                    <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
+                    <div className="text-base-content/70">{graphResult.verification.notes}</div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            {graphResult ? (
+              <div className="card card-soft-neutral shadow">
+                <div className="card-body space-y-4 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="card-title text-base text-base-content">Diagnostics</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowGraphTrace((prev) => !prev)}
+                      disabled={!graphTrace}
+                      className="btn btn-accent btn-xs"
+                      data-tour-id="graph-show-trace"
+                    >
+                      {showGraphTrace ? "Hide trace" : "Show trace"}
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {graphResult.subqueries.map((sub) => (
+                      <div key={sub.query} className="rounded-box border border-base-200 bg-base-200/60 p-3">
+                        <div className="text-sm font-semibold text-base-content">{sub.query}</div>
+                        <div className="text-base-content/70">{sub.answer}</div>
+                        <div className="text-[11px] text-base-content/60">
+                          Hops: {sub.metrics.hops_used ?? "-"} · Graph hits: {sub.metrics.graph_candidates ?? "-"} · Hybrid hits: {sub.metrics.hybrid_candidates ?? "-"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-box border border-base-200 bg-base-200/40 p-3 text-xs text-base-content/70">
+                    {graphTrace ? (
+                      <span>Trace ID: {graphTrace.request_id.slice(0, 8)}…</span>
+                    ) : (
+                      <span>Trace unavailable for this run.</span>
+                    )}
+                  </div>
+                  {showGraphTrace && graphTrace ? (
+                    <div className="rounded-box border border-base-200 bg-base-100 p-3">
+                      <GraphRagTraceViewer trace={graphTrace} />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : isGraphLoading ? (
+              <div className="card card-soft-neutral shadow">
+                <div className="card-body">
+                  <SkeletonBlock lines={4} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {mode === "simple" ? (
+          <div id="mode-panel-simple" role="tabpanel" aria-labelledby="mode-tab-simple">
+            <div className="card card-soft-neutral shadow">
+              <div className="card-body space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="card-title text-base text-base-content">Answer</h3>
+                  {confidence ? (
+                    <span className={`badge badge-outline ${confidenceStyles[confidence]}`}>
+                      Confidence: {confidenceLabels[confidence]}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
+                  {renderMarkdown(answer, "Answer stream will appear here.")}
+                </div>
+                <div className="flex flex-wrap justify-end gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => copyMarkdown(answer)}
+                    disabled={!answer}
+                    className="btn btn-ghost btn-xs"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadMarkdown(answer, "answer.md")}
+                    disabled={!answerComplete || !answer}
+                    className="btn btn-ghost btn-xs"
+                  >
+                    Download .md
+                  </button>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                  <div className="rounded-box border border-base-300 bg-base-200/60 p-3">
+                    {sources.length ? (
+                      <ul className="space-y-2 text-sm">
+                        {sources.map((source) => (
+                          <li key={source.rank}>
+                            <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                            <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-base-content/60">Retrieved chunks will show here.</p>
+                    )}
+                  </div>
+                </div>
+                <div data-tour-id="feedback-bar">
+                  <FeedbackBar queryId={queryId} />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {mode === "advanced" ? (
+          <div id="mode-panel-advanced" role="tabpanel" aria-labelledby="mode-tab-advanced">
+            <div className="card card-soft-neutral shadow">
+              <div className="card-body space-y-4">
+                <h3 className="card-title text-base text-base-content">A/B answers</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {[
+                    { label: "Answer — Profile A", value: answerA, complete: answerAComplete, sources: retrievedA, fileName: "answer-profile-a.md" },
+                    { label: "Answer — Profile B", value: answerB, complete: answerBComplete, sources: retrievedB, fileName: "answer-profile-b.md" },
+                  ].map((item) => (
+                    <div key={item.label} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
+                      <div className="text-sm font-semibold">{item.label}</div>
+                      <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
+                        {renderMarkdown(item.value, `${item.label} stream will appear here.`)}
+                      </div>
+                      <div className="flex justify-end gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => copyMarkdown(item.value)}
+                          disabled={!item.value}
+                          className="btn btn-ghost btn-xs"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadMarkdown(item.value, item.fileName)}
+                          disabled={!item.complete || !item.value}
+                          className="btn btn-ghost btn-xs"
+                        >
+                          Download .md
+                        </button>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
+                        <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
+                          {item.sources.length ? (
+                            <ul className="space-y-2 text-sm">
+                              {item.sources.map((source) => (
+                                <li key={`${item.label}-${source.rank}`}>
+                                  <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
+                                  <div className="text-base-content/70 line-clamp-4">{source.text}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-base-content/60">—</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="alert alert-error">{error}</div>
+        ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
+
+        {mode === "advanced" ? (
+          <section className="col-span-12 card card-soft-secondary shadow">
+            <div className="card-body space-y-3">
+              <h3 className="card-title text-base text-base-content">Profiles (A/B)</h3>
+              <AdvancedSettings
+                valueA={profileA}
+                valueB={profileB}
+                onChange={(which, next) => (which === "A" ? setProfileA(next) : setProfileB(next))}
+              />
+            </div>
+          </section>
+        ) : null}
+
+        <section className="col-span-12 card card-soft-neutral shadow">
+          <div className="card-body space-y-4 text-sm text-base-content">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="card-title text-base text-base-content">API status</h2>
@@ -835,88 +1267,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
             </div>
           ) : null}
 
-          {mode === "graph" ? (
-            <div className="mt-4 rounded-box border border-dashed border-base-300 bg-base-100 p-4 text-xs text-base-content/80 md:grid md:grid-cols-2 md:gap-4">
-              <div className="space-y-1">
-                <label className="font-semibold">Top-k passages</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={graphSettings.k}
-                  onChange={(event) =>
-                    setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
-                  }
-                  className="input input-bordered input-sm w-full bg-base-100"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-semibold">Max graph hops</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={4}
-                  value={graphSettings.maxHops}
-                  onChange={(event) =>
-                    setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
-                  }
-                  className="input input-bordered input-sm w-full bg-base-100"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-semibold">Temperature</label>
-                <input
-                  type="number"
-                  step={0.1}
-                  min={0}
-                  max={1}
-                  value={graphSettings.temperature}
-                  onChange={(event) =>
-                    setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
-                  }
-                  className="input input-bordered input-sm w-full bg-base-100"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-semibold">Rerank strategy</label>
-                <select
-                  value={graphSettings.rerank}
-                  onChange={(event) =>
-                    setGraphSettings((prev) => ({ ...prev, rerank: event.target.value as "ce" | "llm" }))
-                  }
-                  className="select select-bordered select-sm w-full bg-base-100"
-                >
-                  <option value="ce">Cross-encoder</option>
-                  <option value="llm" disabled={!LLM_RERANK_ALLOWED}>
-                    LLM rerank {LLM_RERANK_ALLOWED ? "" : "(disabled)"}
-                  </option>
-                </select>
-              </div>
-              <div className="space-y-1 md:col-span-2">
-                <label className="font-semibold">Verification</label>
-                <select
-                  value={graphSettings.verificationMode}
-                  onChange={(event) =>
-                    setGraphSettings((prev) => ({
-                      ...prev,
-                      verificationMode: event.target.value as "none" | "ragv" | "llm",
-                    }))
-                  }
-                  className="select select-bordered select-sm w-full bg-base-100"
-                >
-                  <option value="none">Skip verification</option>
-                  <option value="ragv">RAG-V cross-check</option>
-                  <option value="llm" disabled={!FACT_CHECK_LLM_ALLOWED}>
-                    Fact-check LLM {FACT_CHECK_LLM_ALLOWED ? "" : "(disabled)"}
-                  </option>
-                </select>
-              </div>
-            </div>
-          ) : null}
         </div>
       </section>
       {authEnabled ? (
-        <section className="col-span-12 card bg-base-100 shadow">
+        <section className="col-span-12 card card-soft-neutral shadow">
           <div className="card-body space-y-3 text-sm text-base-content">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -962,7 +1316,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
       ) : null}
 
       {authEnabled && user?.is_admin ? (
-        <section className="col-span-12 card bg-base-100 shadow">
+        <section className="col-span-12 card card-soft-neutral shadow">
           <div className="card-body space-y-4 text-sm text-base-content">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="card-title text-base text-base-content">Admin tools</h2>
@@ -1073,362 +1427,13 @@ const [queryId, setQueryId] = useState<string | null>(null);
         </section>
       ) : null}
 
-      <aside className="col-span-12 space-y-4 lg:col-span-3">
-        <div className="card bg-base-100 shadow">
-          <div className="card-body space-y-4 text-sm text-base-content">
-            <div className="flex items-center justify-between">
-              <h3 className="card-title text-base text-base-content">Documents & session</h3>
-              {busy !== "idle" ? <LoadingBadge label={busy === "uploading" ? "Uploading" : "Busy"} /> : null}
-            </div>
-            <Uploader
-              disabled={busy !== "idle" || authGateActive}
-              onFilesSelected={handleFilesSelected}
-              onUseSamples={useSamples}
-            />
-            <UploadLimitHint />
-            <div className="text-xs text-base-content/60">Uploads start immediately after selection.</div>
-            <div className="rounded-box border border-dashed border-base-300 bg-base-200/60 p-3 text-sm">
-              {filesChosen.length ? (
-                <ul className="space-y-1">
-                  {filesChosen.map((file, index) => (
-                    <li key={`${file.name}-${index}`} className="truncate">
-                      • {file.name}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-base-content/60">No files selected.</p>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs text-base-content/70">
-              <span className="badge badge-outline">
-                Session: {sessionId ? `${sessionId.slice(0, 8)}…` : "—"}
-              </span>
-              <span className={`badge ${indexed ? "badge-success" : "badge-ghost"}`}>
-                Indexed: {indexed ? "yes" : "no"}
-              </span>
-            </div>
-            <button
-              onClick={doIndex}
-              disabled={!canBuild}
-              className="btn btn-primary btn-sm w-full"
-              data-tour-id="build-index"
-            >
-              {busy === "indexing" ? "Indexing…" : "Build index"}
-            </button>
-          </div>
-        </div>
-
-        {mode === "advanced" ? (
-          <div className="card bg-base-100 shadow">
-            <div className="card-body space-y-3">
-              <h3 className="card-title text-base text-base-content">Profiles (A/B)</h3>
-              <AdvancedSettings
-                valueA={profileA}
-                valueB={profileB}
-                onChange={(which, next) => (which === "A" ? setProfileA(next) : setProfileB(next))}
-              />
-            </div>
-          </div>
-        ) : null}
-      </aside>
 
 
-      <section
-        className={`col-span-12 space-y-4 ${mode === "simple" ? "lg:col-span-6" : "lg:col-span-9"}`}
-      >
-        <div className="card bg-base-100 shadow">
-          <div className="card-body space-y-6">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="card-title text-base text-base-content">Ask a question</h2>
-                {mode !== "graph" ? (
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
-                    <span className="font-semibold text-base-content">Answer mode</span>
-                    <div className="join">
-                      <button
-                        type="button"
-                        className={`${modeButtonClass("grounded")} join-item`}
-                        onClick={() => setAnswerMode("grounded")}
-                      >
-                        Document-only
-                      </button>
-                      <button
-                        type="button"
-                        className={`${modeButtonClass("blended")} join-item`}
-                        onClick={() => setAnswerMode("blended")}
-                      >
-                        Doc + world context
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-3 md:flex-row">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="e.g., What is our PTO policy?"
-                className="input input-bordered w-full bg-base-100"
-                data-tour-id="query-input"
-              />
-                <div className="flex flex-shrink-0 gap-2">
-                {mode === "simple" ? (
-                  <button
-                    type="button"
-                    onClick={doQuerySimple}
-                    className="btn btn-primary"
-                    disabled={!canQuery}
-                    data-tour-id="run-button"
-                  >
-                    {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
-                  </button>
-                ) : null}
-                {mode === "advanced" ? (
-                  <button
-                    type="button"
-                    onClick={doCompare}
-                    className="btn btn-primary"
-                    disabled={!canCompare}
-                    data-tour-id="run-button"
-                  >
-                    {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
-                  </button>
-                ) : null}
-                {mode === "graph" ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void runGraphQuery();
-                    }}
-                    className="btn btn-primary"
-                    disabled={
-                      !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
-                    }
-                    data-tour-id="run-button"
-                  >
-                    {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
-                  </button>
-                ) : null}
-                </div>
-              </div>
-              {mode !== "graph" ? (
-                <p className="text-xs text-base-content/60">World notes appear only in Doc + world context.</p>
-              ) : null}
-            </div>
-            <div className="divider" />
-            <div className="space-y-6">
 
-        {mode === "graph" ? (
-          <div
-            id="mode-panel-graph"
-            role="tabpanel"
-            aria-labelledby="mode-tab-graph"
-            className="space-y-4"
-          >
-            <div className="card bg-base-100 shadow" data-tour-id="graph-settings">
-              <div className="card-body space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="card-title text-base text-base-content">Graph RAG answer</h3>
-                  {graphResult?.verification ? (
-                    <span className="badge badge-outline badge-info">
-                      Verification: {graphResult.verification.verdict}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
-                  {graphResult
-                    ? renderMarkdown(graphResult.answer, "Graph RAG answer will appear here.")
-                    : isGraphLoading
-                      ? <SkeletonBlock lines={5} />
-                      : "Graph RAG answer will appear here."}
-                </div>
-                {graphResult?.verification ? (
-                  <div className="rounded-box border border-base-300 bg-base-200/60 p-3 text-xs text-base-content/80">
-                    <div className="text-xs font-semibold uppercase text-base-content/60">Verification</div>
-                    <div className="text-base-content">Mode: {graphResult.verification.mode}</div>
-                    <div>Coverage: {(graphResult.verification.coverage * 100).toFixed(0)}%</div>
-                    <div className="text-base-content/70">{graphResult.verification.notes}</div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            {graphResult ? (
-              <div className="card bg-base-100 shadow">
-                <div className="card-body space-y-4 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="card-title text-base text-base-content">Diagnostics</h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowGraphTrace((prev) => !prev)}
-                      disabled={!graphTrace}
-                      className="btn btn-accent btn-xs"
-                      data-tour-id="graph-show-trace"
-                    >
-                      {showGraphTrace ? "Hide trace" : "Show trace"}
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {graphResult.subqueries.map((sub) => (
-                      <div key={sub.query} className="rounded-box border border-base-200 bg-base-200/60 p-3">
-                        <div className="text-sm font-semibold text-base-content">{sub.query}</div>
-                        <div className="text-base-content/70">{sub.answer}</div>
-                        <div className="text-[11px] text-base-content/60">
-                          Hops: {sub.metrics.hops_used ?? "-"} · Graph hits: {sub.metrics.graph_candidates ?? "-"} · Hybrid hits: {sub.metrics.hybrid_candidates ?? "-"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-box border border-base-200 bg-base-200/40 p-3 text-xs text-base-content/70">
-                    {graphTrace ? (
-                      <span>Trace ID: {graphTrace.request_id.slice(0, 8)}…</span>
-                    ) : (
-                      <span>Trace unavailable for this run.</span>
-                    )}
-                  </div>
-                  {showGraphTrace && graphTrace ? (
-                    <div className="rounded-box border border-base-200 bg-base-100 p-3">
-                      <GraphRagTraceViewer trace={graphTrace} />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : isGraphLoading ? (
-              <div className="card bg-base-100 shadow">
-                <div className="card-body">
-                  <SkeletonBlock lines={4} />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
 
-        {mode === "simple" ? (
-          <div id="mode-panel-simple" role="tabpanel" aria-labelledby="mode-tab-simple">
-            <div className="card bg-base-100 shadow">
-              <div className="card-body space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="card-title text-base text-base-content">Answer</h3>
-                  {confidence ? (
-                    <span className={`badge badge-outline ${confidenceStyles[confidence]}`}>
-                      Confidence: {confidenceLabels[confidence]}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
-                  {renderMarkdown(answer, "Answer stream will appear here.")}
-                </div>
-                <div className="flex flex-wrap justify-end gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => copyMarkdown(answer)}
-                    disabled={!answer}
-                    className="btn btn-ghost btn-xs"
-                  >
-                    Copy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadMarkdown(answer, "answer.md")}
-                    disabled={!answerComplete || !answer}
-                    className="btn btn-ghost btn-xs"
-                  >
-                    Download .md
-                  </button>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
-                  <div className="rounded-box border border-base-300 bg-base-200/60 p-3">
-                    {sources.length ? (
-                      <ul className="space-y-2 text-sm">
-                        {sources.map((source) => (
-                          <li key={source.rank}>
-                            <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                            <div className="text-base-content/70 line-clamp-4">{source.text}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-base-content/60">Retrieved chunks will show here.</p>
-                    )}
-                  </div>
-                </div>
-                <div data-tour-id="feedback-bar">
-                  <FeedbackBar queryId={queryId} />
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {mode === "advanced" ? (
-          <div id="mode-panel-advanced" role="tabpanel" aria-labelledby="mode-tab-advanced">
-            <div className="card bg-base-100 shadow">
-              <div className="card-body space-y-4">
-                <h3 className="card-title text-base text-base-content">A/B answers</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {[
-                    { label: "Answer — Profile A", value: answerA, complete: answerAComplete, sources: retrievedA, fileName: "answer-profile-a.md" },
-                    { label: "Answer — Profile B", value: answerB, complete: answerBComplete, sources: retrievedB, fileName: "answer-profile-b.md" },
-                  ].map((item) => (
-                    <div key={item.label} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
-                      <div className="text-sm font-semibold">{item.label}</div>
-                      <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
-                        {renderMarkdown(item.value, `${item.label} stream will appear here.`)}
-                      </div>
-                      <div className="flex justify-end gap-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => copyMarkdown(item.value)}
-                          disabled={!item.value}
-                          className="btn btn-ghost btn-xs"
-                        >
-                          Copy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadMarkdown(item.value, item.fileName)}
-                          disabled={!item.complete || !item.value}
-                          className="btn btn-ghost btn-xs"
-                        >
-                          Download .md
-                        </button>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
-                        <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
-                          {item.sources.length ? (
-                            <ul className="space-y-2 text-sm">
-                              {item.sources.map((source) => (
-                                <li key={`${item.label}-${source.rank}`}>
-                                  <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                                  <div className="text-base-content/70 line-clamp-4">{source.text}</div>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-base-content/60">—</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {error ? (
-          <div className="alert alert-error">{error}</div>
-        ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
       {mode === "simple" ? (
         <aside className="col-span-12 space-y-4 lg:col-span-3">
-          <div className="card bg-base-100 shadow">
+          <div className="card card-soft-neutral shadow">
             <div className="card-body space-y-3 text-sm text-base-content">
               <div className="flex items-center justify-between">
                 <h3 className="card-title text-base text-base-content">Explainability</h3>
@@ -1455,6 +1460,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
           </div>
         </aside>
       ) : null}
+        </div>
       </div>
     </main>
   );
