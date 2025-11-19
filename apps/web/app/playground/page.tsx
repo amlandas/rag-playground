@@ -13,6 +13,7 @@ import UploadLimitHint from "../../components/UploadLimitHint";
 import SkeletonLine, { SkeletonBlock } from "../../components/Skeletons";
 import { useAuth } from "../../components/AuthProvider";
 import { useTour } from "../../components/TourProvider";
+import { shouldAutoStartWalkthrough } from "../../lib/walkthroughStorage";
 import { API_BASE } from "../../lib/api";
 import {
   answerFromSnippetsSSE,
@@ -296,7 +297,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
   }, []);
   const { startTour } = useTour();
   useEffect(() => {
-    startTour("playground");
+    if (shouldAutoStartWalkthrough()) {
+      startTour("playground");
+    }
   }, [startTour]);
 
   const downloadMarkdown = useCallback((value: string, fileName: string) => {
