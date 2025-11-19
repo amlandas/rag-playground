@@ -4,10 +4,12 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type PropsWithChildren,
 } from "react";
+import { useOptionalAuth } from "./AuthProvider";
 
 export type TourStep = {
   id: string;
@@ -44,7 +46,15 @@ const defaultValue: TourContextValue = {
 
 const TourContext = createContext<TourContextValue | undefined>(undefined);
 
-const playgroundSteps: TourStep[] = [
+const signInStep: TourStep = {
+  id: "sign-in",
+  targetSelector: '[data-tour-id="sign-in"]',
+  title: "Sign in with Google",
+  body: "Sign in to unlock uploads, metrics, and admin tools tied to your account.",
+  requireVisible: true,
+};
+
+const basePlaygroundSteps: TourStep[] = [
   {
     id: "mode-tabs",
     targetSelector: '[data-tour-id="mode-tabs"]',
@@ -118,15 +128,35 @@ const playgroundSteps: TourStep[] = [
 
 type TourProviderProps = PropsWithChildren<{
   initialTourId?: "playground" | null;
+  authStateOverride?: { authEnabled: boolean; isAuthenticated: boolean };
 }>;
 
-export function TourProvider({ children, initialTourId = null }: TourProviderProps) {
+export function TourProvider({
+  children,
+  initialTourId = null,
+  authStateOverride,
+}: TourProviderProps) {
+  const optionalAuth = useOptionalAuth();
+  const derivedAuthState =
+    authStateOverride ??
+    {
+      authEnabled: optionalAuth?.authEnabled ?? false,
+      isAuthenticated: !!optionalAuth?.user,
+    };
+
   const initialActive = initialTourId === "playground";
+  const dynamicSteps = useMemo(() => {
+    const steps = [...basePlaygroundSteps];
+    if (derivedAuthState.authEnabled && !derivedAuthState.isAuthenticated) {
+      steps.unshift(signInStep);
+    }
+    return steps;
+  }, [derivedAuthState.authEnabled, derivedAuthState.isAuthenticated]);
   const [isActive, setIsActive] = useState(initialActive);
   const [activeTourId, setActiveTourId] = useState<"playground" | null>(
     initialActive ? "playground" : null,
   );
-  const [steps, setSteps] = useState<TourStep[]>(() => (initialActive ? playgroundSteps : []));
+  const [steps, setSteps] = useState<TourStep[]>(() => (initialActive ? dynamicSteps : []));
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
   const currentStep = useMemo(() => {
@@ -134,14 +164,17 @@ export function TourProvider({ children, initialTourId = null }: TourProviderPro
     return steps[currentIndex] ?? null;
   }, [steps, currentIndex]);
 
-  const startTour = useCallback((tourId: "playground") => {
-    if (tourId === "playground") {
-      setActiveTourId("playground");
-      setSteps(playgroundSteps);
-      setCurrentIndex(0);
-      setIsActive(true);
-    }
-  }, []);
+  const startTour = useCallback(
+    (tourId: "playground") => {
+      if (tourId === "playground") {
+        setActiveTourId("playground");
+        setSteps(dynamicSteps);
+        setCurrentIndex(0);
+        setIsActive(true);
+      }
+    },
+    [dynamicSteps],
+  );
 
   const stopTour = useCallback(() => {
     setIsActive(false);
@@ -159,7 +192,14 @@ export function TourProvider({ children, initialTourId = null }: TourProviderPro
       }
       return next;
     });
-  }, [steps.length, stopTour]);
+  }, [steps, stopTour]);
+
+  useEffect(() => {
+    if (isActive && activeTourId === "playground") {
+      setSteps(dynamicSteps);
+      setCurrentIndex((prev) => Math.min(prev, Math.max(dynamicSteps.length - 1, 0)));
+    }
+  }, [dynamicSteps, isActive, activeTourId]);
 
   const value: TourContextValue = {
     isActive,

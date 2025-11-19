@@ -94,14 +94,14 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
           data-tour-id="uploader-samples"
           onClick={handleUseSamples}
           disabled={disabled}
-          className="btn btn-ghost btn-outline btn-xs sm:btn-sm"
+          className="btn btn-ghost btn-outline btn-xs sm:btn-sm interactive-button"
         >
           {busy ? "Loading…" : "Use sample dataset"}
         </button>
         <button
           onClick={handlePick}
           disabled={disabled || busy}
-          className="btn btn-secondary btn-xs sm:btn-sm"
+          className="btn btn-secondary btn-xs sm:btn-sm interactive-button"
         >
           Browse files
         </button>

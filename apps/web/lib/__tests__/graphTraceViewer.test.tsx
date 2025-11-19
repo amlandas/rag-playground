@@ -32,5 +32,8 @@ assert(html.includes("graph_advanced"));
 assert(html.includes("collapse"), "trace viewer should include collapsible sections");
 assert(html.includes("badge"), "trace viewer should include DaisyUI badges");
 assert(html.includes("All evidence aligned."));
+const normalizedHtml = html.replace(/<!--.*?-->/g, "").replace(/&nbsp;/g, " ");
+assert(normalizedHtml.includes("Hop 1"), "planner hop badge should display without truncation");
+assert(normalizedHtml.includes("Rank 1"), "retrieval rank badge should display without truncation");
 
 console.log("✅ Graph trace viewer renders with sample data");

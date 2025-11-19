@@ -27,6 +27,38 @@ body[data-theme-ready="false"] {
   background-color: hsl(var(--b2) / 0.35);
 }
 
+@layer components {
+  .interactive-card {
+    @apply transition-transform duration-200 ease-out;
+  }
+
+  .interactive-button {
+    @apply transition-transform duration-150 ease-out;
+  }
+
+  .interactive-tab {
+    @apply transition-all duration-150 ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .interactive-card:hover {
+    @apply -translate-y-0.5 shadow-lg;
+  }
+
+  .interactive-button:hover {
+    @apply -translate-y-0.5 shadow-md brightness-105;
+  }
+
+  .interactive-button:active {
+    transform: scale(0.95);
+  }
+
+  .interactive-tab:hover {
+    @apply -translate-y-0.5;
+  }
+}
+
 /* ---- RAG answer formatting ---- */
 .answer-body {
   white-space: pre-wrap;

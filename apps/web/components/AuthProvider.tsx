@@ -211,8 +211,12 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
   );
 }
 
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext) ?? null;
+}
+
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
+  const ctx = useOptionalAuth();
   if (!ctx) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
