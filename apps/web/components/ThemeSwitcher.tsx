@@ -3,29 +3,39 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const THEME_OPTIONS = [
-  { value: "light", label: "Daylight", subtitle: "Light", icon: "☀️" },
-  { value: "forest", label: "Forest", subtitle: "Dark", icon: "🌲" },
+  { value: "pastel", label: "Pastel", subtitle: "Soft & light", icon: "🎨" },
+  { value: "dark", label: "Dark", subtitle: "High contrast", icon: "🌙" },
 ] as const;
 
 type ThemeName = (typeof THEME_OPTIONS)[number]["value"];
+const FALLBACK_THEME: ThemeName = "pastel";
 
 const STORAGE_KEY = "rag-playground-theme";
+
+function normalizeTheme(value: string | null): ThemeName | null {
+  if (!value) return null;
+  const lower = value.toLowerCase();
+  if (lower === "pastel") return "pastel";
+  if (lower === "dark") return "dark";
+  if (lower === "light" || lower === "daylight") return "pastel";
+  if (lower === "forest") return "dark";
+  return null;
+}
 
 function getStoredTheme(): ThemeName | null {
   if (typeof window === "undefined") return null;
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  const match = THEME_OPTIONS.find((option) => option.value === stored);
-  return match ? match.value : null;
+  return normalizeTheme(stored);
 }
 
 function resolveInitialTheme(): ThemeName {
   const stored = getStoredTheme();
   if (stored) return stored;
-  return "light";
+  return FALLBACK_THEME;
 }
 
 export default function ThemeSwitcher() {
-  const [theme, setTheme] = useState<ThemeName>("light");
+  const [theme, setTheme] = useState<ThemeName>(FALLBACK_THEME);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,6 +57,11 @@ export default function ThemeSwitcher() {
     return current ? `${current.icon} ${current.label}` : "Theme";
   }, [theme]);
 
+  const selectedIcon = useMemo(() => {
+    const current = THEME_OPTIONS.find((option) => option.value === theme);
+    return current?.icon ?? "🎨";
+  }, [theme]);
+
   return (
     <div className="dropdown dropdown-end" data-testid="theme-switcher">
       <label
@@ -56,7 +71,7 @@ export default function ThemeSwitcher() {
         aria-label="Toggle color theme"
       >
         <span role="img" aria-hidden="true">
-          {theme === "forest" ? "🌙" : "☀️"}
+          {selectedIcon}
         </span>
         <span className="hidden sm:inline">{mounted ? selectedLabel : "Theme"}</span>
       </label>

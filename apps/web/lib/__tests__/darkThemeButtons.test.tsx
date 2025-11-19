@@ -16,7 +16,7 @@ function PlaygroundHarness() {
 }
 
 const html = renderToString(
-  <div data-theme="forest">
+  <div data-theme="dark">
     <PlaygroundHarness />
   </div>,
 );

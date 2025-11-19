@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import ThemeSwitcher from "../../components/ThemeSwitcher";
 
 async function runTest() {
-const dom = new JSDOM("<!doctype html><html data-theme=\"light\"><body><div id=\"root\"></div></body></html>", {
+const dom = new JSDOM("<!doctype html><html data-theme=\"pastel\"><body><div id=\"root\"></div></body></html>", {
   pretendToBeVisual: true,
   url: "https://example.com",
 });
@@ -29,8 +29,29 @@ const dom = new JSDOM("<!doctype html><html data-theme=\"light\"><body><div id=\
 
   assert.strictEqual(
     window.document.documentElement.dataset.theme,
-    "light",
-    "ThemeSwitcher should default to light when no preference is stored",
+    "pastel",
+    "ThemeSwitcher should default to pastel when no preference is stored",
+  );
+  const bodyText = window.document.body.textContent ?? "";
+  ["Pastel", "Dark"].forEach((label) => {
+    assert(
+      bodyText.includes(label),
+      `theme switcher should list the ${label} option`,
+    );
+  });
+
+  const darkButton = Array.from(window.document.querySelectorAll("button")).find((btn) =>
+    btn.textContent?.includes("Dark"),
+  );
+  assert(darkButton, "Dark option button should render");
+  await act(async () => {
+    darkButton!.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  assert.strictEqual(
+    window.document.documentElement.dataset.theme,
+    "dark",
+    "Switching to Dark should update the root dataset theme",
   );
 
   root.unmount();
@@ -40,7 +61,7 @@ const dom = new JSDOM("<!doctype html><html data-theme=\"light\"><body><div id=\
   delete (globalThis as any).navigator;
   delete (globalThis as any).localStorage;
 
-  console.log("✅ ThemeSwitcher defaults to Daylight when no saved theme is present");
+  console.log("✅ ThemeSwitcher defaults to Pastel and toggles to Dark");
 }
 
 void runTest();

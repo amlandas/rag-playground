@@ -10,7 +10,7 @@ assert(
   html.includes('data-testid="theme-switcher"'),
   "navbar should render the theme switcher control",
 );
-["Daylight", "Forest"].forEach((label) => {
+["Pastel", "Dark"].forEach((label) => {
   assert(html.includes(label), `theme switcher should list the ${label} theme`);
 });
 
