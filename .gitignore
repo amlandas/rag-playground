@@ -35,3 +35,12 @@ __pycache__/
 *.sqlite3
 .local/
 logs/
+DaisyUI_Upgrade_Plan.txt
+Milestone2_V3_Plan.txt
+System_Infra.md
+System_Infra.mmd
+RAG tuning cheatsheet.docx
+RAG_Playground_Advanced-RAG.docx
+~$G tuning cheatsheet.docx
+~$G_Playground_Advanced-RAG.docx
+tmp/
