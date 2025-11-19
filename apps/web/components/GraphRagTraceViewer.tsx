@@ -45,7 +45,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
           <button
             type="button"
             onClick={handleDownload}
-            className="btn btn-ghost btn-xs"
+            className="btn btn-ghost btn-outline btn-xs"
           >
             Download JSON
           </button>

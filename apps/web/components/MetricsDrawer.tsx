@@ -43,7 +43,7 @@ export default function MetricsDrawer() {
       />
       <div className="drawer-content">
         <button
-          className="btn btn-ghost btn-xs"
+          className="btn btn-secondary btn-xs"
           onClick={() => setOpen(true)}
         >
           {open ? "Hide metrics" : "Show metrics"}

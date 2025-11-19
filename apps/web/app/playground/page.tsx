@@ -841,7 +841,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   onChange={(event) =>
                     setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
                   }
-                  className="input input-bordered input-sm w-full"
+                  className="input input-bordered input-sm w-full bg-base-100"
                 />
               </div>
               <div className="space-y-1">
@@ -854,7 +854,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   onChange={(event) =>
                     setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
                   }
-                  className="input input-bordered input-sm w-full"
+                  className="input input-bordered input-sm w-full bg-base-100"
                 />
               </div>
               <div className="space-y-1">
@@ -868,7 +868,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   onChange={(event) =>
                     setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
                   }
-                  className="input input-bordered input-sm w-full"
+                  className="input input-bordered input-sm w-full bg-base-100"
                 />
               </div>
               <div className="space-y-1">
@@ -878,7 +878,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   onChange={(event) =>
                     setGraphSettings((prev) => ({ ...prev, rerank: event.target.value as "ce" | "llm" }))
                   }
-                  className="select select-bordered select-sm w-full"
+                  className="select select-bordered select-sm w-full bg-base-100"
                 >
                   <option value="ce">Cross-encoder</option>
                   <option value="llm" disabled={!LLM_RERANK_ALLOWED}>
@@ -896,7 +896,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       verificationMode: event.target.value as "none" | "ragv" | "llm",
                     }))
                   }
-                  className="select select-bordered select-sm w-full"
+                  className="select select-bordered select-sm w-full bg-base-100"
                 >
                   <option value="none">Skip verification</option>
                   <option value="ragv">RAG-V cross-check</option>
@@ -1158,12 +1158,12 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 ) : null}
               </div>
               <div className="flex flex-col gap-3 md:flex-row">
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="e.g., What is our PTO policy?"
-                  className="input input-bordered w-full"
-                />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="e.g., What is our PTO policy?"
+                className="input input-bordered w-full bg-base-100"
+              />
                 <div className="flex flex-shrink-0 gap-2">
                   {mode === "simple" ? (
                     <button
@@ -1251,7 +1251,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       type="button"
                       onClick={() => setShowGraphTrace((prev) => !prev)}
                       disabled={!graphTrace}
-                      className="btn btn-accent btn-outline btn-xs"
+                      className="btn btn-accent btn-xs"
                     >
                       {showGraphTrace ? "Hide trace" : "Show trace"}
                     </button>

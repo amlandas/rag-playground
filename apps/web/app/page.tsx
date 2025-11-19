@@ -38,7 +38,7 @@ export default function Landing() {
               <Link href="/playground" className="btn btn-secondary">
                 Try the playground
               </Link>
-              <Link href="/#docs" className="btn btn-ghost">
+              <Link href="/#docs" className="btn btn-link">
                 View docs (coming soon)
               </Link>
             </div>

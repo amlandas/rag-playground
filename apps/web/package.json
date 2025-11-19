@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:sanity": "tsx lib/__tests__/modePayload.test.ts && tsx lib/__tests__/apiBaseUrl.test.ts && tsx lib/__tests__/graphTraceViewer.test.tsx && tsx lib/__tests__/storageBackendLabel.test.tsx && tsx lib/__tests__/uploadLimitHint.test.tsx && tsx lib/__tests__/daisyuiComponents.test.tsx && tsx lib/__tests__/playgroundModes.test.tsx && tsx lib/__tests__/navbarTheme.test.tsx && tsx lib/__tests__/playgroundTabsAccessibility.test.tsx"
+    "test:sanity": "tsx lib/__tests__/modePayload.test.ts && tsx lib/__tests__/apiBaseUrl.test.ts && tsx lib/__tests__/graphTraceViewer.test.tsx && tsx lib/__tests__/storageBackendLabel.test.tsx && tsx lib/__tests__/uploadLimitHint.test.tsx && tsx lib/__tests__/daisyuiComponents.test.tsx && tsx lib/__tests__/playgroundModes.test.tsx && tsx lib/__tests__/navbarTheme.test.tsx && tsx lib/__tests__/playgroundTabsAccessibility.test.tsx && tsx lib/__tests__/darkThemeButtons.test.tsx"
   },
   "dependencies": {
     "@rag-playground/shared": "workspace:*",
