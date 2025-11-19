@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED?.toLowerCase() === "true";
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en" data-theme="pastel">
       <body className="min-h-screen bg-base-200 text-base-content antialiased" data-theme-ready="false">
         <AuthProvider enabled={googleAuthEnabled} clientId={googleClientId}>
           <TourProvider>
