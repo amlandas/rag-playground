@@ -12,6 +12,7 @@ import Uploader from "../../components/Uploader";
 import UploadLimitHint from "../../components/UploadLimitHint";
 import SkeletonLine, { SkeletonBlock } from "../../components/Skeletons";
 import { useAuth } from "../../components/AuthProvider";
+import { useTour } from "../../components/TourProvider";
 import { API_BASE } from "../../lib/api";
 import {
   answerFromSnippetsSSE,
@@ -293,6 +294,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
       /* noop */
     });
   }, []);
+  const { startTour } = useTour();
+  useEffect(() => {
+    startTour("playground");
+  }, [startTour]);
 
   const downloadMarkdown = useCallback((value: string, fileName: string) => {
     if (!value) return;
@@ -730,6 +735,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
               <div
                 className="tabs tabs-boxed inline-flex text-sm"
                 role="tablist"
+                data-tour-id="mode-tabs"
                 aria-label="Answer modes"
               >
                 {visibleModeTabs.map((tab) => (
@@ -1106,6 +1112,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
               onClick={doIndex}
               disabled={!canBuild}
               className="btn btn-primary btn-sm w-full"
+              data-tour-id="build-index"
             >
               {busy === "indexing" ? "Indexing…" : "Build index"}
             </button>
@@ -1163,42 +1170,46 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="e.g., What is our PTO policy?"
                 className="input input-bordered w-full bg-base-100"
+                data-tour-id="query-input"
               />
                 <div className="flex flex-shrink-0 gap-2">
-                  {mode === "simple" ? (
-                    <button
-                      type="button"
-                      onClick={doQuerySimple}
-                      className="btn btn-primary"
-                      disabled={!canQuery}
-                    >
-                      {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
-                    </button>
-                  ) : null}
-                  {mode === "advanced" ? (
-                    <button
-                      type="button"
-                      onClick={doCompare}
-                      className="btn btn-primary"
-                      disabled={!canCompare}
-                    >
-                      {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
-                    </button>
-                  ) : null}
-                  {mode === "graph" ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void runGraphQuery();
-                      }}
-                      className="btn btn-primary"
-                      disabled={
-                        !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
-                      }
-                    >
-                      {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
-                    </button>
-                  ) : null}
+                {mode === "simple" ? (
+                  <button
+                    type="button"
+                    onClick={doQuerySimple}
+                    className="btn btn-primary"
+                    disabled={!canQuery}
+                    data-tour-id="run-button"
+                  >
+                    {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
+                  </button>
+                ) : null}
+                {mode === "advanced" ? (
+                  <button
+                    type="button"
+                    onClick={doCompare}
+                    className="btn btn-primary"
+                    disabled={!canCompare}
+                    data-tour-id="run-button"
+                  >
+                    {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
+                  </button>
+                ) : null}
+                {mode === "graph" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void runGraphQuery();
+                    }}
+                    className="btn btn-primary"
+                    disabled={
+                      !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
+                    }
+                    data-tour-id="run-button"
+                  >
+                    {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
+                  </button>
+                ) : null}
                 </div>
               </div>
               {mode !== "graph" ? (
@@ -1215,7 +1226,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
             aria-labelledby="mode-tab-graph"
             className="space-y-4"
           >
-            <div className="card bg-base-100 shadow">
+            <div className="card bg-base-100 shadow" data-tour-id="graph-settings">
               <div className="card-body space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="card-title text-base text-base-content">Graph RAG answer</h3>
@@ -1252,6 +1263,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       onClick={() => setShowGraphTrace((prev) => !prev)}
                       disabled={!graphTrace}
                       className="btn btn-accent btn-xs"
+                      data-tour-id="graph-show-trace"
                     >
                       {showGraphTrace ? "Hide trace" : "Show trace"}
                     </button>
@@ -1341,7 +1353,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
                     )}
                   </div>
                 </div>
-                <FeedbackBar queryId={queryId} />
+                <div data-tour-id="feedback-bar">
+                  <FeedbackBar queryId={queryId} />
+                </div>
               </div>
             </div>
           </div>

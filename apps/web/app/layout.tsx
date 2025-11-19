@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 
 import { AuthProvider } from "../components/AuthProvider";
 import SiteNavbar from "../components/SiteNavbar";
+import { TourProvider } from "../components/TourProvider";
+import TourOverlay from "../components/TourOverlay";
 
 export const metadata: Metadata = {
   title: "RAG Playground",
@@ -17,10 +19,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" data-theme="light">
       <body className="min-h-screen bg-base-200 text-base-content antialiased" data-theme-ready="false">
         <AuthProvider enabled={googleAuthEnabled} clientId={googleClientId}>
-          <div className="flex min-h-screen flex-col">
-            <SiteNavbar />
-            <div className="flex flex-1 flex-col">{children}</div>
-          </div>
+          <TourProvider>
+            <div className="flex min-h-screen flex-col">
+              <SiteNavbar />
+              <div className="flex flex-1 flex-col">{children}</div>
+            </div>
+            <TourOverlay />
+          </TourProvider>
         </AuthProvider>
       </body>
     </html>

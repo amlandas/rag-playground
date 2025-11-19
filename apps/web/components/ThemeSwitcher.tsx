@@ -57,6 +57,7 @@ export default function ThemeSwitcher() {
       <label
         tabIndex={0}
         className="btn btn-ghost btn-sm gap-2"
+        data-tour-id="theme-switcher"
         aria-label="Toggle color theme"
       >
         <span role="img" aria-hidden="true">

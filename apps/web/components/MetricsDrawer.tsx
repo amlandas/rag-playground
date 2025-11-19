@@ -45,6 +45,7 @@ export default function MetricsDrawer() {
         <button
           className="btn btn-secondary btn-xs"
           onClick={() => setOpen(true)}
+          data-tour-id="metrics-toggle"
         >
           {open ? "Hide metrics" : "Show metrics"}
         </button>
