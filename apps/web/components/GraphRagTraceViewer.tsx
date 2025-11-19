@@ -35,7 +35,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
 
   return (
     <div className="space-y-4 text-sm text-base-content">
-      <div className="card bg-base-100 shadow">
+      <div className="card bg-base-100 shadow interactive-card">
         <div className="card-body flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-base-content/60">Trace</p>
@@ -45,7 +45,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
           <button
             type="button"
             onClick={handleDownload}
-            className="btn btn-ghost btn-outline btn-xs"
+            className="btn btn-ghost btn-outline btn-xs interactive-button"
           >
             Download JSON
           </button>
@@ -73,7 +73,9 @@ export default function GraphRagTraceViewer({ trace }: Props) {
                 <div key={`${step.hop}-${step.subquery}`} className="rounded-box border border-base-200 bg-base-200/60 p-3">
                   <div className="flex items-center justify-between text-xs font-semibold">
                     <span>{formatHop(step)}</span>
-                    <span className="badge badge-primary badge-outline">Hop {step.hop + 1}</span>
+                    <span className="badge badge-primary badge-outline whitespace-nowrap px-3 py-1 text-xs font-semibold">
+                      Hop {step.hop + 1}
+                    </span>
                   </div>
                   {step.notes ? <div className="text-xs text-base-content/70">{step.notes}</div> : null}
                 </div>
@@ -93,7 +95,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
                 <div key={`${hit.doc_id ?? "doc"}-${idx}`} className="rounded-box border border-base-200 bg-base-200/60 p-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold">{hit.source ?? hit.doc_id ?? "unknown source"}</span>
-                    <span className="badge badge-secondary badge-outline">
+                    <span className="badge badge-secondary badge-outline whitespace-nowrap px-3 py-1 text-xs font-semibold">
                       Rank {hit.rank ?? idx + 1}
                     </span>
                   </div>
@@ -111,7 +113,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card bg-base-100 shadow-sm interactive-card">
           <div className="card-body space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase text-base-content/60">Verification</p>
@@ -134,7 +136,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
             )}
           </div>
         </div>
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card bg-base-100 shadow-sm interactive-card">
           <div className="card-body space-y-2">
             <div className="text-xs font-semibold uppercase text-base-content/60">Synthesis notes</div>
             {trace.synthesis_notes.length ? (

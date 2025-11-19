@@ -685,9 +685,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-base-200">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 2xl:max-w-[1400px] py-8">
         <div className="grid grid-cols-12 gap-6">
-      <section className="col-span-12 card card-soft-primary shadow-xl">
+      <section className="col-span-12 card card-soft-primary shadow-xl interactive-card">
         <div className="card-body space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -707,7 +707,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                     {user.is_admin ? <span className="badge badge-success badge-outline">Admin</span> : null}
                     <button
                       onClick={() => signOut()}
-                      className="btn btn-ghost btn-xs"
+                      className="btn btn-ghost btn-xs interactive-button"
                       disabled={authLoading}
                     >
                       Sign out
@@ -717,8 +717,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   <button
                     type="button"
                     onClick={() => signIn()}
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-primary btn-sm interactive-button"
                     disabled={authLoading}
+                    data-tour-id="sign-in"
                   >
                     {authLoading ? "Loading…" : (
                       <span className="inline-flex items-center gap-2">
@@ -747,7 +748,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                     role="tab"
                     aria-selected={mode === tab.value}
                     aria-controls={tab.panelId}
-                    className={`tab whitespace-nowrap ${mode === tab.value ? "tab-active" : ""}`}
+                    className={`tab whitespace-nowrap interactive-tab ${mode === tab.value ? "tab-active" : ""}`}
                     onClick={() => setMode(tab.value)}
                   >
                     {tab.label}
@@ -764,8 +765,8 @@ const [queryId, setQueryId] = useState<string | null>(null);
           </div>
         </div>
       </section>
-      <section className="col-span-12 space-y-4 lg:col-span-6">
-        <div className="card card-soft-secondary shadow">
+      <section className="col-span-12 space-y-4">
+        <div className="card card-soft-secondary shadow interactive-card">
           <div className="card-body space-y-4 text-sm text-base-content">
             <div className="flex items-center justify-between">
               <h3 className="card-title text-base text-base-content">Documents & session</h3>
@@ -802,7 +803,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
             <button
               onClick={doIndex}
               disabled={!canBuild}
-              className="btn btn-primary btn-sm w-full"
+              className="btn btn-primary btn-sm w-full interactive-button"
               data-tour-id="build-index"
             >
               {busy === "indexing" ? "Indexing…" : "Build index"}
@@ -810,8 +811,8 @@ const [queryId, setQueryId] = useState<string | null>(null);
           </div>
         </div>
       </section>
-      <section className="col-span-12 space-y-4 lg:col-span-6">
-        <div className="card card-soft-accent shadow">
+      <section className="col-span-12 space-y-4">
+        <div className="card card-soft-accent shadow interactive-card">
           <div className="card-body space-y-6">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -851,7 +852,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   <button
                     type="button"
                     onClick={doQuerySimple}
-                    className="btn btn-primary"
+                    className="btn btn-primary interactive-button"
                     disabled={!canQuery}
                     data-tour-id="run-button"
                   >
@@ -862,7 +863,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                   <button
                     type="button"
                     onClick={doCompare}
-                    className="btn btn-primary"
+                    className="btn btn-primary interactive-button"
                     disabled={!canCompare}
                     data-tour-id="run-button"
                   >
@@ -875,7 +876,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                     onClick={() => {
                       void runGraphQuery();
                     }}
-                    className="btn btn-primary"
+                    className="btn btn-primary interactive-button"
                     disabled={
                       !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
                     }
@@ -981,7 +982,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
             aria-labelledby="mode-tab-graph"
             className="space-y-4"
           >
-            <div className="card card-soft-neutral shadow">
+            <div className="card card-soft-neutral shadow interactive-card">
               <div className="card-body space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="card-title text-base text-base-content">Graph RAG answer</h3>
@@ -1009,7 +1010,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
               </div>
             </div>
             {graphResult ? (
-              <div className="card card-soft-neutral shadow">
+              <div className="card card-soft-neutral shadow interactive-card">
                 <div className="card-body space-y-4 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="card-title text-base text-base-content">Diagnostics</h3>
@@ -1017,7 +1018,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       type="button"
                       onClick={() => setShowGraphTrace((prev) => !prev)}
                       disabled={!graphTrace}
-                      className="btn btn-accent btn-xs"
+                      className="btn btn-accent btn-xs interactive-button"
                       data-tour-id="graph-show-trace"
                     >
                       {showGraphTrace ? "Hide trace" : "Show trace"}
@@ -1049,7 +1050,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 </div>
               </div>
             ) : isGraphLoading ? (
-              <div className="card card-soft-neutral shadow">
+              <div className="card card-soft-neutral shadow interactive-card">
                 <div className="card-body">
                   <SkeletonBlock lines={4} />
                 </div>
@@ -1060,7 +1061,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
         {mode === "simple" ? (
           <div id="mode-panel-simple" role="tabpanel" aria-labelledby="mode-tab-simple">
-            <div className="card card-soft-neutral shadow">
+            <div className="card card-soft-neutral shadow interactive-card">
               <div className="card-body space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="card-title text-base text-base-content">Answer</h3>
@@ -1118,7 +1119,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
         {mode === "advanced" ? (
           <div id="mode-panel-advanced" role="tabpanel" aria-labelledby="mode-tab-advanced">
-            <div className="card card-soft-neutral shadow">
+            <div className="card card-soft-neutral shadow interactive-card">
               <div className="card-body space-y-4">
                 <h3 className="card-title text-base text-base-content">A/B answers</h3>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1183,7 +1184,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
       </section>
 
         {mode === "advanced" ? (
-          <section className="col-span-12 card card-soft-secondary shadow">
+          <section className="col-span-12 card card-soft-secondary shadow interactive-card">
             <div className="card-body space-y-3">
               <h3 className="card-title text-base text-base-content">Profiles (A/B)</h3>
               <AdvancedSettings
@@ -1195,7 +1196,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
           </section>
         ) : null}
 
-        <section className="col-span-12 card card-soft-neutral shadow">
+        <section className="col-span-12 card card-soft-neutral shadow interactive-card">
           <div className="card-body space-y-4 text-sm text-base-content">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1270,7 +1271,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
         </div>
       </section>
       {authEnabled ? (
-        <section className="col-span-12 card card-soft-neutral shadow">
+        <section className="col-span-12 card card-soft-neutral shadow interactive-card">
           <div className="card-body space-y-3 text-sm text-base-content">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1316,7 +1317,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
       ) : null}
 
       {authEnabled && user?.is_admin ? (
-        <section className="col-span-12 card card-soft-neutral shadow">
+        <section className="col-span-12 card card-soft-neutral shadow interactive-card">
           <div className="card-body space-y-4 text-sm text-base-content">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="card-title text-base text-base-content">Admin tools</h2>
@@ -1433,7 +1434,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
       {mode === "simple" ? (
         <aside className="col-span-12 space-y-4 lg:col-span-3">
-          <div className="card card-soft-neutral shadow">
+          <div className="card card-soft-neutral shadow interactive-card">
             <div className="card-body space-y-3 text-sm text-base-content">
               <div className="flex items-center justify-between">
                 <h3 className="card-title text-base text-base-content">Explainability</h3>

@@ -43,7 +43,7 @@ export default function MetricsDrawer() {
       />
       <div className="drawer-content">
         <button
-          className="btn btn-secondary btn-xs"
+          className="btn btn-secondary btn-xs interactive-button"
           onClick={() => setOpen(true)}
           data-tour-id="metrics-toggle"
         >
@@ -63,7 +63,7 @@ export default function MetricsDrawer() {
               <div className="flex items-center justify-between">
                 <h3 className="card-title text-base">Recent metrics</h3>
                 <button
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary btn-sm interactive-button"
                   onClick={() => setOpen(false)}
                 >
                   Close
