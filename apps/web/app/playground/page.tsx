@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState, type SVGProps } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type SVGProps } from "react";
 import AdvancedSettings from "../../components/AdvancedSettings";
 import FeedbackBar from "../../components/FeedbackBar";
 import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
@@ -28,7 +28,8 @@ import {
 import { renderMarkdown } from "../../lib/renderMarkdown";
 import { formatBytesInMB, UPLOAD_MAX_FILE_BYTES, UPLOAD_MAX_FILE_MB } from "../../lib/uploadLimits";
 import { toSnippetPayload } from "../../lib/abSnippets";
-import { clampNumber, normalizeTopKInput } from "../../lib/numeric";
+import { normalizeTopKInput, normalizeMaxHopsInput, normalizeTemperatureInput } from "../../lib/numeric";
+import { useGraphRunner } from "../../lib/useGraphRunner";
 import type {
   AdminMetricsSummary,
   AdvancedQueryResponse,
@@ -475,79 +476,50 @@ const [queryId, setQueryId] = useState<string | null>(null);
     );
   }
 
-  const runGraphQuery = useCallback(async () => {
-    if (!sessionId) return;
-    if (authRequired) {
-      setError("Sign in with Google to run queries.");
-      return;
-    }
-    if (authGateActive) return;
-    if (!indexed) {
-      setError("Build an index before running Graph RAG queries.");
-      return;
-    }
-    setBusy("querying");
-    setAnswer("");
-    setAnswerComplete(false);
-    setSources([]);
-    setGraphResult(null);
-    setGraphTrace(null);
-    setShowGraphTrace(false);
-    setError(null);
-    const sanitizedRerank = graphSettings.rerank === "llm" && !LLM_RERANK_ALLOWED ? "ce" : graphSettings.rerank;
-    const sanitizedVerification =
-      graphSettings.verificationMode === "llm" && !FACT_CHECK_LLM_ALLOWED
-        ? "ragv"
-        : graphSettings.verificationMode;
-    try {
-      const payload: AdvancedQueryPayload = {
-        session_id: sessionId,
+  const graphRunnerConfig = useMemo(
+    () => ({
+      state: {
+        sessionId,
+        authRequired,
+        authGateActive,
+        indexed,
         query,
-        k: graphSettings.k,
-        max_hops: graphSettings.maxHops,
-        temperature: graphSettings.temperature,
-        rerank: sanitizedRerank,
-        verification_mode: sanitizedVerification,
-      };
-      const response = await queryAdvancedGraph(payload);
-      setAnswer(response.answer);
-      setAnswerComplete(true);
-      const normalizedSources: RetrievedChunk[] = response.subqueries.flatMap((sub) =>
-        sub.retrieved_meta.map((meta) => ({
-          rank: meta.rank,
-          doc_id: meta.doc_id,
-          start: meta.start,
-          end: meta.end,
-          text: meta.text,
-          similarity: meta.dense_score,
-          lexical_score: meta.lexical_score,
-          fused_score: meta.fused_score,
-          rerank_score: meta.rerank_score ?? undefined,
-        })),
-      );
-      setSources(normalizedSources);
-      setGraphResult(response);
-      setGraphTrace(response.trace ?? null);
-      setShowGraphTrace(false);
-    } catch (err: any) {
-      setError(friendlyError(err));
-      setGraphResult(null);
-      setGraphTrace(null);
-    } finally {
-      setBusy("idle");
-    }
-  }, [
-    sessionId,
-    authRequired,
-    authGateActive,
-    indexed,
-    graphSettings.k,
-    graphSettings.maxHops,
-    graphSettings.temperature,
-    graphSettings.rerank,
-    graphSettings.verificationMode,
-    query,
-  ]);
+        graphSettings,
+        llmRerankAllowed: LLM_RERANK_ALLOWED,
+        factCheckLlmAllowed: FACT_CHECK_LLM_ALLOWED,
+      },
+      actions: {
+        setBusy,
+        setAnswer,
+        setAnswerComplete,
+        setSources,
+        setGraphResult,
+        setGraphTrace,
+        setShowGraphTrace,
+        setError,
+      },
+      friendlyError,
+    }),
+    [
+      sessionId,
+      authRequired,
+      authGateActive,
+      indexed,
+      query,
+      graphSettings,
+      setBusy,
+      setAnswer,
+      setAnswerComplete,
+      setSources,
+      setGraphResult,
+      setGraphTrace,
+      setShowGraphTrace,
+      setError,
+      friendlyError,
+    ],
+  );
+
+  const runGraphQuery = useGraphRunner(graphRunnerConfig);
 
   async function doCompare() {
     if (!sessionId) return;
@@ -899,13 +871,12 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       min={1}
                       max={12}
                       value={graphSettings.k}
-                      onChange={(event) => {
-                        const next = normalizeTopKInput(event.target.value);
-                        setGraphSettings((prev) => ({ ...prev, k: next }));
-                      }}
+                      onChange={(event) =>
+                        setGraphSettings((prev) => ({ ...prev, k: normalizeTopKInput(event.target.value) }))
+                      }
                       className="input input-bordered input-sm w-full bg-base-100"
                     />
-                    <p className="text-[11px] text-base-content/60">Range: 1–12</p>
+                    <p className="text-[11px] text-primary/70">Range: 1–12</p>
                   </div>
                   <div className="space-y-1">
                     <label className="font-semibold">Max graph hops</label>
@@ -915,10 +886,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       max={4}
                       value={graphSettings.maxHops}
                       onChange={(event) =>
-                        setGraphSettings((prev) => ({ ...prev, maxHops: Number(event.target.value) || 1 }))
+                        setGraphSettings((prev) => ({ ...prev, maxHops: normalizeMaxHopsInput(event.target.value) }))
                       }
                       className="input input-bordered input-sm w-full bg-base-100"
                     />
+                    <p className="text-[11px] text-primary/70">Range: 1–4</p>
                   </div>
                   <div className="space-y-1">
                     <label className="font-semibold">Temperature</label>
@@ -929,10 +901,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       max={1}
                       value={graphSettings.temperature}
                       onChange={(event) =>
-                        setGraphSettings((prev) => ({ ...prev, temperature: Number(event.target.value) || 0 }))
+                        setGraphSettings((prev) => ({ ...prev, temperature: normalizeTemperatureInput(event.target.value) }))
                       }
                       className="input input-bordered input-sm w-full bg-base-100"
                     />
+                    <p className="text-[11px] text-primary/70">Range: 0.0–1.0</p>
                   </div>
                   <div className="space-y-1">
                     <label className="font-semibold">Rerank strategy</label>
