@@ -45,6 +45,15 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
   const [error, setError] = useState<string | null>(null);
   const [scriptReady, setScriptReady] = useState<boolean>(!authEnabled);
   const googleReadyRef = useRef(false);
+  const signInAttemptRef = useRef(false);
+
+  const resetSignInAttempt = useCallback((reason?: string) => {
+    if (signInAttemptRef.current && reason) {
+      console.info('[auth] resetting sign-in attempt', reason);
+    }
+    signInAttemptRef.current = false;
+    setLoading(false);
+  }, []);
 
   const applySession = useCallback((session: AuthSession) => {
     if (!session.authenticated) {
@@ -81,8 +90,11 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
 
   const handleCredential = useCallback(
     async (credential: string) => {
-      if (!credential) return;
-      console.debug('[auth] credential received', {
+      if (!credential) {
+        resetSignInAttempt('empty-credential');
+        return;
+      }
+      console.info('[auth] credential received', {
         length: credential.length,
       });
       try {
@@ -94,10 +106,10 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
         console.error('[auth] google login error', err);
         setError('Google sign-in failed. Please try again.');
       } finally {
-        setLoading(false);
+        resetSignInAttempt('credential-finished');
       }
     },
-    [refresh],
+    [refresh, resetSignInAttempt],
   );
 
   const initializeGoogle = useCallback(() => {
@@ -152,13 +164,34 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
       setError('Google Sign-In is still loading. Please wait a moment.');
       return;
     }
+    if (signInAttemptRef.current) {
+      console.warn('[auth] sign-in already in progress');
+      return;
+    }
+    signInAttemptRef.current = true;
+    setLoading(true);
+    setError(null);
     console.info('[auth] prompting Google accounts');
+    google.accounts.id.cancel?.();
     google.accounts.id.prompt(undefined, (notification: any) => {
-      if (typeof notification?.getDismissedReason === 'function') {
-        console.warn('[auth] GIS dismissed', notification.getDismissedReason());
+      const dismissed = typeof notification?.getDismissedReason === 'function'
+        ? notification.getDismissedReason()
+        : undefined;
+      const skipped = typeof notification?.getSkippedReason === 'function'
+        ? notification.getSkippedReason()
+        : undefined;
+      const isDismissed = typeof notification?.isDismissedMoment === 'function'
+        ? notification.isDismissedMoment()
+        : !!dismissed;
+      const isSkipped = typeof notification?.isSkippedMoment === 'function'
+        ? notification.isSkippedMoment()
+        : !!skipped;
+      if (isDismissed || isSkipped) {
+        console.warn('[auth] GIS dismissed', dismissed ?? skipped ?? 'unknown');
+        resetSignInAttempt(dismissed ?? skipped ?? 'dismissed');
       }
     });
-  }, [authEnabled]);
+  }, [authEnabled, resetSignInAttempt]);
 
   const signOut = useCallback(async () => {
     if (!authEnabled) {
@@ -168,6 +201,9 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
     }
     try {
       setLoading(true);
+      const google = (window as any)?.google;
+      google?.accounts?.id?.cancel?.();
+      signInAttemptRef.current = false;
       await logoutSession();
     } catch (err) {
       console.error('[auth] logout error', err);
