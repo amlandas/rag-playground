@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useState } from "react";
 
-const MAX_FILE_MB = 100;
+import { UPLOAD_MAX_FILE_MB } from "../lib/uploadLimits";
 
 type Props = {
   disabled?: boolean;
@@ -20,9 +20,9 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
   const applyFiles = useCallback(
     (files: File[]) => {
       if (!files.length) return;
-      const tooBig = files.find((file) => file.size > MAX_FILE_MB * 1024 * 1024);
+      const tooBig = files.find((file) => file.size > UPLOAD_MAX_FILE_MB * 1024 * 1024);
       if (tooBig) {
-        window.alert(`"${tooBig.name}" exceeds ${MAX_FILE_MB} MB. Please choose smaller files.`);
+        window.alert(`"${tooBig.name}" exceeds ${UPLOAD_MAX_FILE_MB} MB. Please choose smaller files.`);
         return;
       }
       onFilesSelected(files);
@@ -86,7 +86,7 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
       >
         <p className="font-semibold text-base-content">Drop files here or click to browse</p>
         <p className="text-xs text-base-content/60">
-          PDF, TXT, or MD · Up to {MAX_FILE_MB}MB each · Max 20 files
+          PDF, TXT, or MD · Up to {UPLOAD_MAX_FILE_MB}MB each · Max 20 files
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
