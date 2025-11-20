@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useState, type SVGProps } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import AdvancedSettings from "../../components/AdvancedSettings";
 import FeedbackBar from "../../components/FeedbackBar";
 import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
 import HealthBadge from "../../components/HealthBadge";
+import ProfileAnswerCard from "../../components/ProfileAnswerCard";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
 import UploadLimitHint from "../../components/UploadLimitHint";
@@ -26,7 +25,10 @@ import {
   uploadFiles,
   type AdvancedQueryPayload,
 } from "../../lib/rag-api";
+import { renderMarkdown } from "../../lib/renderMarkdown";
 import { formatBytesInMB, UPLOAD_MAX_FILE_BYTES, UPLOAD_MAX_FILE_MB } from "../../lib/uploadLimits";
+import { toSnippetPayload } from "../../lib/abSnippets";
+import { clampNumber, normalizeTopKInput } from "../../lib/numeric";
 import type {
   AdminMetricsSummary,
   AdvancedQueryResponse,
@@ -329,15 +331,6 @@ const [queryId, setQueryId] = useState<string | null>(null);
   const modeButtonClass = (value: AnswerMode) =>
     `btn btn-xs ${answerMode === value ? "btn-primary" : "btn-ghost"}`;
 
-  const renderMarkdown = (value: string, fallback: string) =>
-    value ? (
-      <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm max-w-none">
-        {value}
-      </ReactMarkdown>
-    ) : (
-      <p className="text-base-content/60">{fallback}</p>
-    );
-
   const canBuild =
     authSatisfied && !authGateActive && filesChosen.length > 0 && !!sessionId && !indexed && busy === "idle";
   const canQuery =
@@ -372,7 +365,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
       .join(", ");
     setError(
       `${description} exceed the current ${UPLOAD_MAX_FILE_MB}MB per-file limit. Please upload smaller files. ` +
-        "100MB+ uploads are coming soon via direct-to-GCS support.",
+                "Larger uploads are coming soon via direct-to-GCS support.",
     );
     return false;
   }
@@ -578,8 +571,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
         profile_a: profileA,
         profile_b: profileB,
       });
-      setRetrievedA(result.profile_a);
-      setRetrievedB(result.profile_b);
+      const fetchedA = result.profile_a;
+      const fetchedB = result.profile_b;
+      setRetrievedA(fetchedA);
+      setRetrievedB(fetchedB);
     } catch (error: any) {
       setError(friendlyError(error));
       setBusy("idle");
@@ -588,9 +583,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
     try {
       let aborted = false;
+      const snippetA = toSnippetPayload(fetchedA);
       await answerFromSnippetsSSE(
         query,
-        retrievedA.map(({ rank, text }) => ({ rank, text })),
+        snippetA,
         { model: profileA.model, temperature: profileA.temperature },
         {
           onToken: (token) => {
@@ -609,9 +605,10 @@ const [queryId, setQueryId] = useState<string | null>(null);
       if (aborted) {
         return;
       }
+      const snippetB = toSnippetPayload(fetchedB);
       await answerFromSnippetsSSE(
         query,
-        retrievedB.map(({ rank, text }) => ({ rank, text })),
+        snippetB,
         { model: profileB.model, temperature: profileB.temperature },
         {
           onToken: (token) => {
@@ -902,11 +899,13 @@ const [queryId, setQueryId] = useState<string | null>(null);
                       min={1}
                       max={12}
                       value={graphSettings.k}
-                      onChange={(event) =>
-                        setGraphSettings((prev) => ({ ...prev, k: Number(event.target.value) || 1 }))
-                      }
+                      onChange={(event) => {
+                        const next = normalizeTopKInput(event.target.value);
+                        setGraphSettings((prev) => ({ ...prev, k: next }));
+                      }}
                       className="input input-bordered input-sm w-full bg-base-100"
                     />
+                    <p className="text-[11px] text-base-content/60">Range: 1–12</p>
                   </div>
                   <div className="space-y-1">
                     <label className="font-semibold">Max graph hops</label>
@@ -1127,50 +1126,30 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 <h3 className="card-title text-base text-base-content">A/B answers</h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   {[
-                    { label: "Answer — Profile A", value: answerA, complete: answerAComplete, sources: retrievedA, fileName: "answer-profile-a.md" },
-                    { label: "Answer — Profile B", value: answerB, complete: answerBComplete, sources: retrievedB, fileName: "answer-profile-b.md" },
+                    {
+                      label: "Answer — Profile A",
+                      value: answerA,
+                      complete: answerAComplete,
+                      sources: retrievedA,
+                      fileName: "answer-profile-a.md",
+                    },
+                    {
+                      label: "Answer — Profile B",
+                      value: answerB,
+                      complete: answerBComplete,
+                      sources: retrievedB,
+                      fileName: "answer-profile-b.md",
+                    },
                   ].map((item) => (
-                    <div key={item.label} className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
-                      <div className="text-sm font-semibold">{item.label}</div>
-                      <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
-                        {renderMarkdown(item.value, `${item.label} stream will appear here.`)}
-                      </div>
-                      <div className="flex justify-end gap-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => copyMarkdown(item.value)}
-                          disabled={!item.value}
-                          className="btn btn-ghost btn-xs"
-                        >
-                          Copy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadMarkdown(item.value, item.fileName)}
-                          disabled={!item.complete || !item.value}
-                          className="btn btn-ghost btn-xs"
-                        >
-                          Download .md
-                        </button>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
-                        <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
-                          {item.sources.length ? (
-                            <ul className="space-y-2 text-sm">
-                              {item.sources.map((source) => (
-                                <li key={`${item.label}-${source.rank}`}>
-                                  <div className="font-semibold">[{source.rank}] doc {source.doc_id.slice(0, 8)}…</div>
-                                  <div className="text-base-content/70 line-clamp-4">{source.text}</div>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-base-content/60">—</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <ProfileAnswerCard
+                      key={item.label}
+                      label={item.label}
+                      answer={item.value}
+                      isComplete={item.complete}
+                      sources={item.sources}
+                      onCopy={() => copyMarkdown(item.value)}
+                      onDownload={() => downloadMarkdown(item.value, item.fileName)}
+                    />
                   ))}
                 </div>
               </div>
