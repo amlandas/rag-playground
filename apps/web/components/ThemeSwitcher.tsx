@@ -66,7 +66,7 @@ export default function ThemeSwitcher() {
     <div className="dropdown dropdown-end" data-testid="theme-switcher">
       <label
         tabIndex={0}
-        className="btn btn-ghost btn-sm gap-2"
+        className="btn btn-ghost btn-sm gap-2 hover:bg-base-300/40 active:scale-95 transition-all"
         data-tour-id="theme-switcher"
         aria-label="Toggle color theme"
       >

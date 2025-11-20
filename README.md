@@ -74,9 +74,16 @@ RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs 
 Open http://localhost:3000/playground and click **Use sample dataset → Build index → Ask “What is our PTO policy?”** to validate the end-to-end flow.
 
 ### File size limits
-- Current upload cap: **30MB per file**. Cloud Run enforces ~32MB request bodies, so anything larger will receive a `413 Request Entity Too Large` before the API can stream it.
-- The web UI now validates file sizes client-side and shows a clear message when a file exceeds 30MB instead of firing `/api/upload`.
+- Current upload cap: **32MB per file**. Cloud Run enforces ~32MB request bodies, so anything larger will receive a `413 Request Entity Too Large` before the API can stream it.
+- The web UI validates file sizes client-side and shows a clear message when a file exceeds 32MB instead of firing `/api/upload`.
 - Roadmap: move large uploads to a direct-to-GCS (signed URL) flow so we can safely support 100MB+ files without Cloud Run rejecting the request.
+
+## UI Micro-Interactions
+- All DaisyUI buttons use lightweight hover/press animations (shadow grow, tint shift, active scale) while respecting focus states for accessibility.
+- Inputs and tabs gained consistent focus/hover feedback plus range hints on numeric controls such as Graph RAG settings.
+- CTA cards (documents, ask, profiles, diagnostics) lift slightly on hover for better affordance.
+- The uploader, metrics drawer, graph trace viewer, and theme switcher now have subtle transitions that guide attention without shifting layout.
+- Every motion stays under 150ms and works across the pastel and dark themes, with graceful fallbacks on mobile.
 
 ## Enabling Google Sign-In (optional)
 1. **Create a Web OAuth 2.0 Client** in Google Cloud Console:

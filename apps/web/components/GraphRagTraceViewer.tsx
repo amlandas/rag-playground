@@ -64,7 +64,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="collapse collapse-arrow bg-base-100 shadow-sm">
+        <div className="collapse collapse-arrow bg-base-100 shadow-sm transition-all duration-200">
           <input type="checkbox" defaultChecked />
           <div className="collapse-title text-sm font-semibold">Planner steps</div>
           <div className="collapse-content space-y-2">
@@ -86,7 +86,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
           </div>
         </div>
 
-        <div className="collapse collapse-arrow bg-base-100 shadow-sm">
+        <div className="collapse collapse-arrow bg-base-100 shadow-sm transition-all duration-200">
           <input type="checkbox" defaultChecked />
           <div className="collapse-title text-sm font-semibold">Retrieval hits</div>
           <div className="collapse-content space-y-2">

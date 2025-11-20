@@ -50,15 +50,15 @@ export default function MetricsDrawer() {
           {open ? "Hide metrics" : "Show metrics"}
         </button>
       </div>
-      <div className="drawer-side z-30">
+      <div className="drawer-side z-30 transition-all duration-200">
         <label
           htmlFor={drawerId}
           aria-label="Close metrics drawer"
           className="drawer-overlay"
           onClick={() => setOpen(false)}
         />
-        <div className="menu w-full max-w-md bg-base-100 p-0 text-base-content sm:max-w-xl">
-          <div className="card h-full rounded-none border-l border-base-200 shadow-2xl">
+        <div className="menu w-full max-w-md bg-base-100 p-0 text-base-content sm:max-w-xl transition-all duration-200">
+          <div className="card h-full rounded-none border-l border-base-200 shadow-2xl transition-transform duration-200 ease-out">
             <div className="card-body space-y-4 text-sm">
               <div className="flex items-center justify-between">
                 <h3 className="card-title text-base">Recent metrics</h3>
