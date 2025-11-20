@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { normalizeTemperatureInput } from "../lib/numeric";
 import type { CompareProfile } from "../lib/types";
 
 type Props = {
@@ -15,9 +16,10 @@ type FieldProps = {
   type?: "number" | "text";
   step?: number;
   min?: number;
+  hint?: string;
 };
 
-function Field({ label, value, onChange, type = "number", step = 1, min = 0 }: FieldProps) {
+function Field({ label, value, onChange, type = "number", step = 1, min = 0, hint }: FieldProps) {
   return (
     <label className="form-control w-full">
       <div className="label">
@@ -35,6 +37,7 @@ function Field({ label, value, onChange, type = "number", step = 1, min = 0 }: F
         step={step}
         min={type === "number" ? min : undefined}
       />
+      {hint ? <p className="mt-1 text-[11px] text-primary/70">{hint}</p> : null}
     </label>
   );
 }
@@ -73,8 +76,14 @@ export default function AdvancedSettings({ valueA, valueB, onChange }: Props) {
               <Field
                 label="temperature"
                 value={value.temperature ?? 0.2}
-                onChange={(next) => onChange(key, { ...value, temperature: Number(next) })}
+                onChange={(next) =>
+                  onChange(key, {
+                    ...value,
+                    temperature: normalizeTemperatureInput(String(next)),
+                  })
+                }
                 step={0.1}
+                hint="Range: 0.0–1.0"
               />
             </div>
             <Field
