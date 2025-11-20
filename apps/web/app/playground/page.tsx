@@ -15,9 +15,7 @@ import { useTour } from "../../components/TourProvider";
 import { shouldAutoStartWalkthrough } from "../../lib/walkthroughStorage";
 import { API_BASE } from "../../lib/api";
 import {
-  answerFromSnippetsSSE,
   buildIndex,
-  compareRetrieval,
   fetchHealthDetails,
   fetchMetricsSummary,
   queryAdvancedGraph,
@@ -27,9 +25,9 @@ import {
 } from "../../lib/rag-api";
 import { renderMarkdown } from "../../lib/renderMarkdown";
 import { formatBytesInMB, UPLOAD_MAX_FILE_BYTES, UPLOAD_MAX_FILE_MB } from "../../lib/uploadLimits";
-import { toSnippetPayload } from "../../lib/abSnippets";
 import { normalizeTopKInput, normalizeMaxHopsInput, normalizeTemperatureInput } from "../../lib/numeric";
 import { useGraphRunner } from "../../lib/useGraphRunner";
+import { useCompareRunner } from "../../lib/useCompareRunner";
 import type {
   AdminMetricsSummary,
   AdvancedQueryResponse,
@@ -190,10 +188,11 @@ export default function Playground() {
   });
   const [retrievedA, setRetrievedA] = useState<RetrievedChunk[]>([]);
   const [retrievedB, setRetrievedB] = useState<RetrievedChunk[]>([]);
-const [answerA, setAnswerA] = useState("");
-const [answerB, setAnswerB] = useState("");
-const [answerAComplete, setAnswerAComplete] = useState(false);
-const [answerBComplete, setAnswerBComplete] = useState(false);
+  const [answerA, setAnswerA] = useState("");
+  const [answerB, setAnswerB] = useState("");
+  const [answerAComplete, setAnswerAComplete] = useState(false);
+  const [answerBComplete, setAnswerBComplete] = useState(false);
+  const [compareError, setCompareError] = useState<string | null>(null);
 const [queryId, setQueryId] = useState<string | null>(null);
   const [graphSettings, setGraphSettings] = useState({
     k: 6,
@@ -222,6 +221,12 @@ const [queryId, setQueryId] = useState<string | null>(null);
   useEffect(() => {
     if (mode !== "graph") {
       setGraphResult(null);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "advanced") {
+      setCompareError(null);
     }
   }, [mode]);
 
@@ -521,86 +526,52 @@ const [queryId, setQueryId] = useState<string | null>(null);
 
   const runGraphQuery = useGraphRunner(graphRunnerConfig);
 
-  async function doCompare() {
-    if (!sessionId) return;
-    if (authRequired) {
-      setError("Sign in with Google to run comparisons.");
-      return;
-    }
-    if (authGateActive) return;
-    setBusy("comparing");
-    setError(null);
-    setRetrievedA([]);
-    setRetrievedB([]);
-    setAnswerA("");
-    setAnswerB("");
-    setAnswerAComplete(false);
-    setAnswerBComplete(false);
-    try {
-      const result = await compareRetrieval({
-        session_id: sessionId,
+  const compareRunnerConfig = useMemo(
+    () => ({
+      state: {
+        sessionId,
+        authRequired,
+        authGateActive,
+        indexed,
         query,
-        profile_a: profileA,
-        profile_b: profileB,
-      });
-      const fetchedA = result.profile_a;
-      const fetchedB = result.profile_b;
-      setRetrievedA(fetchedA);
-      setRetrievedB(fetchedB);
-    } catch (error: any) {
-      setError(friendlyError(error));
-      setBusy("idle");
-      return;
-    }
+        profileA,
+        profileB,
+      },
+      actions: {
+        setBusy,
+        setRetrievedA,
+        setRetrievedB,
+        setAnswerA,
+        setAnswerB,
+        setAnswerAComplete,
+        setAnswerBComplete,
+        setCompareError,
+        setError,
+      },
+      friendlyError,
+    }),
+    [
+      sessionId,
+      authRequired,
+      authGateActive,
+      indexed,
+      query,
+      profileA,
+      profileB,
+      setBusy,
+      setRetrievedA,
+      setRetrievedB,
+      setAnswerA,
+      setAnswerB,
+      setAnswerAComplete,
+      setAnswerBComplete,
+      setCompareError,
+      setError,
+      friendlyError,
+    ],
+  );
 
-    try {
-      let aborted = false;
-      const snippetA = toSnippetPayload(fetchedA);
-      await answerFromSnippetsSSE(
-        query,
-        snippetA,
-        { model: profileA.model, temperature: profileA.temperature },
-        {
-          onToken: (token) => {
-            setAnswerA((prev) => prev + token);
-          },
-          onDone: () => {
-            setAnswerAComplete(true);
-          },
-          onError: (err) => {
-            setError(friendlyError(err));
-            setBusy("idle");
-            aborted = true;
-          },
-        },
-      );
-      if (aborted) {
-        return;
-      }
-      const snippetB = toSnippetPayload(fetchedB);
-      await answerFromSnippetsSSE(
-        query,
-        snippetB,
-        { model: profileB.model, temperature: profileB.temperature },
-        {
-          onToken: (token) => {
-            setAnswerB((prev) => prev + token);
-          },
-          onDone: () => {
-            setAnswerBComplete(true);
-            setBusy("idle");
-          },
-          onError: (err) => {
-            setError(friendlyError(err));
-            setBusy("idle");
-          },
-        },
-      );
-    } catch (error: any) {
-      setError(friendlyError(error));
-      setBusy("idle");
-    }
-  }
+  const runCompare = useCompareRunner(compareRunnerConfig);
 
   useEffect(() => {
     if (!filesChosen.length) {
@@ -834,7 +805,9 @@ const [queryId, setQueryId] = useState<string | null>(null);
                 {mode === "advanced" ? (
                   <button
                     type="button"
-                    onClick={doCompare}
+                    onClick={() => {
+                      void runCompare();
+                    }}
                     className="btn btn-primary interactive-button"
                     disabled={!canCompare}
                     data-tour-id="run-button"
@@ -1096,7 +1069,11 @@ const [queryId, setQueryId] = useState<string | null>(null);
           <div id="mode-panel-advanced" role="tabpanel" aria-labelledby="mode-tab-advanced">
             <div className="card card-soft-neutral shadow interactive-card">
               <div className="card-body space-y-4">
-                <h3 className="card-title text-base text-base-content">A/B answers</h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="card-title text-base text-base-content">A/B answers</h3>
+                  {busy === "comparing" ? <LoadingBadge label="Comparing" /> : null}
+                </div>
+                {compareError ? <div className="alert alert-error">{compareError}</div> : null}
                 <div className="grid gap-4 md:grid-cols-2">
                   {[
                     {
@@ -1130,7 +1107,7 @@ const [queryId, setQueryId] = useState<string | null>(null);
           </div>
         ) : null}
 
-        {error ? (
+        {error && !(mode === "advanced" && compareError) ? (
           <div className="alert alert-error">{error}</div>
         ) : null}
             </div>
