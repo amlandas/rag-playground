@@ -57,7 +57,7 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
         data-tour-id="uploader-dropzone"
         className={`rounded-box border-2 border-dashed ${
           isDragging ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50"
-        } px-4 py-6 text-center text-sm transition hover:border-primary hover:bg-primary/10`}
+        } px-4 py-6 text-center text-sm transition-all duration-200 hover:border-primary hover:bg-base-100 hover:shadow-md focus-visible:outline-none focus-visible:ring focus-visible:ring-primary/40`}
         onClick={handlePick}
         onDragOver={(event) => {
           event.preventDefault();
