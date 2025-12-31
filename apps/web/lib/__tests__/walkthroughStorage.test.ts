@@ -32,6 +32,14 @@ class FakeStorage implements Storage {
 
 const storage = new FakeStorage();
 
+// React 19 fix for JSDOM/Scheduler
+if (typeof globalThis.window === "undefined") {
+  (globalThis as any).window = {
+    event: { type: "check" },
+    localStorage: storage,
+  };
+}
+
 assert.strictEqual(
   shouldAutoStartWalkthrough(storage),
   true,

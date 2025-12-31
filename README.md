@@ -1,4 +1,4 @@
-# RAG Playground
+# Scientia (formerly RAG Playground)
 
 ## Overview
 RAG Playground is a full-stack retrieval-augmented generation sandbox. It pairs a FastAPI backend with a Next.js playground so you can ingest documents, experiment with hybrid retrieval (FAISS + BM25 + MMR), apply CE/LLM rerankers, and stream grounded answers with citations. Optional Google Sign-In gates uploads/queries and unlocks an admin panel with live metrics and health diagnostics.

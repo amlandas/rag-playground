@@ -7,10 +7,10 @@ import { createRoot } from "react-dom/client";
 import ThemeSwitcher from "../../components/ThemeSwitcher";
 
 async function runTest() {
-const dom = new JSDOM("<!doctype html><html data-theme=\"pastel\"><body><div id=\"root\"></div></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://example.com",
-});
+  const dom = new JSDOM("<!doctype html><html data-theme=\"dark\"><body><div id=\"root\"></div></body></html>", {
+    pretendToBeVisual: true,
+    url: "https://example.com",
+  });
   const { window } = dom;
 
   (globalThis as any).window = window;
@@ -18,6 +18,8 @@ const dom = new JSDOM("<!doctype html><html data-theme=\"pastel\"><body><div id=
   (globalThis as any).HTMLElement = window.HTMLElement;
   Object.defineProperty(globalThis, "navigator", { value: window.navigator, configurable: true });
   (globalThis as any).localStorage = window.localStorage;
+  // React 19 / Scheduler fix for JSDOM
+  (window as any).event = { type: "check" };
 
   const container = window.document.getElementById("root") as HTMLElement;
   const root = createRoot(container);
@@ -29,8 +31,8 @@ const dom = new JSDOM("<!doctype html><html data-theme=\"pastel\"><body><div id=
 
   assert.strictEqual(
     window.document.documentElement.dataset.theme,
-    "pastel",
-    "ThemeSwitcher should default to pastel when no preference is stored",
+    "dark",
+    "ThemeSwitcher should default to dark when no preference is stored",
   );
   const bodyText = window.document.body.textContent ?? "";
   ["Pastel", "Dark"].forEach((label) => {
@@ -55,13 +57,16 @@ const dom = new JSDOM("<!doctype html><html data-theme=\"pastel\"><body><div id=
   );
 
   root.unmount();
+  // React 19 scheduler might run after test, so we leave the window stub to prevent crashes.
+  /*
   delete (globalThis as any).window;
   delete (globalThis as any).document;
   delete (globalThis as any).HTMLElement;
   delete (globalThis as any).navigator;
   delete (globalThis as any).localStorage;
+  */
 
-  console.log("✅ ThemeSwitcher defaults to Pastel and toggles to Dark");
+  console.log("✅ ThemeSwitcher defaults to Dark and toggles correctly");
 }
 
 void runTest();

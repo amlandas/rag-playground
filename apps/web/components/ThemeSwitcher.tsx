@@ -3,12 +3,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const THEME_OPTIONS = [
-  { value: "pastel", label: "Pastel", subtitle: "Soft & light", icon: "🎨" },
   { value: "dark", label: "Dark", subtitle: "High contrast", icon: "🌙" },
+  { value: "pastel", label: "Pastel", subtitle: "Soft & light", icon: "🎨" },
 ] as const;
 
 type ThemeName = (typeof THEME_OPTIONS)[number]["value"];
-const FALLBACK_THEME: ThemeName = "pastel";
+const FALLBACK_THEME: ThemeName = "dark";
 
 const STORAGE_KEY = "rag-playground-theme";
 

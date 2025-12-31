@@ -67,7 +67,7 @@ const basePlaygroundSteps: TourStep[] = [
     targetSelector: '[data-tour-id="uploader-dropzone"]',
     title: "Upload your documents",
     body:
-      "Drop in your PDFs or text files here, or use the sample dataset to explore the playground quickly.",
+      "Drop in your PDFs or text files here, or use the sample dataset to explore the laboratory quickly.",
   },
   {
     id: "build-index",

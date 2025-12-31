@@ -8,7 +8,7 @@ const features = [
   },
   {
     title: "Graph, Simple, and A/B modes",
-    body: "Switch modes without leaving the page and compare profiles with a single click.",
+    body: "Switch modes without leaving the laboratory and compare profiles with a single click.",
   },
   {
     title: "Secure by default",
@@ -26,20 +26,20 @@ export default function Landing() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Live preview</p>
                 <h1 className="card-title text-4xl text-base-content">
-                  RAG Playground for domain experts
+                  Scientia
                 </h1>
                 <p className="mt-2 text-base text-base-content/70">
-                  Upload documents, tune retrieval settings, and watch grounded answers stream in with full traceability.
+                  A research assistant that helps you ask better questions across your own materials. It retrieves the most relevant context, shows you what it used, and can combine world knowledge when your question needs outside background.
                 </p>
               </div>
               <HealthBadge />
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href="/playground" className="btn btn-secondary">
-                Try the playground
+              <Link href="/laboratory" className="btn btn-secondary">
+                Try the laboratory
               </Link>
-              <Link href="/#docs" className="btn btn-link">
-                View docs (coming soon)
+              <Link href="/docs" className="btn btn-link">
+                View documentation
               </Link>
             </div>
             <p className="text-sm text-base-content/60">
@@ -61,13 +61,12 @@ export default function Landing() {
 
         <section id="docs" className="card bg-base-100 shadow-lg">
           <div className="card-body space-y-3">
-            <h2 className="card-title text-xl text-base-content">Getting started</h2>
+            <h2 className="card-title text-xl text-base-content">Documentation</h2>
             <p className="text-base text-base-content/70">
-              Head to the playground to upload a PDF or use the sample dataset. Build an index, run a query in Simple, A/B, or Graph mode,
-              and inspect the retrieved context and verification signals inline.
+              Need help getting started? Check out our detailed guides on ingestion, retrieval modes, and configuration.
             </p>
-            <div className="rounded-box bg-base-200/60 p-4 text-sm text-base-content/70">
-              👉 Looking for APIs or deployment docs? They’re coming soon—subscribe to updates from the Docs link above.
+            <div className="card-actions">
+              <Link href="/docs" className="btn btn-primary btn-sm">Go to Docs</Link>
             </div>
           </div>
         </section>

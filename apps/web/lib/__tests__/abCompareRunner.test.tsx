@@ -122,16 +122,16 @@ function Harness({
           answer={answerA}
           isComplete={answerAComplete}
           sources={retrievedA}
-          onCopy={() => {}}
-          onDownload={() => {}}
+          onCopy={() => { }}
+          onDownload={() => { }}
         />
         <ProfileAnswerCard
           label="Answer — Profile B"
           answer={answerB}
           isComplete={answerBComplete}
           sources={retrievedB}
-          onCopy={() => {}}
-          onDownload={() => {}}
+          onCopy={() => { }}
+          onDownload={() => { }}
         />
       </div>
       {error ? <div data-testid="global-error">{error}</div> : null}
@@ -150,6 +150,8 @@ async function renderHarness({
   (globalThis as any).window = dom.window;
   (globalThis as any).document = dom.window.document;
   (globalThis as any).HTMLElement = dom.window.HTMLElement;
+  // React 19 JSDOM/Scheduler fix
+  (dom.window as any).event = { type: "check" };
 
   const container = window.document.getElementById("root") as HTMLElement;
   const root = createRoot(container);
@@ -187,10 +189,12 @@ async function runAbCompareStreamsAnswers() {
   });
 
   root.unmount();
+  /*
   delete (globalThis as any).window;
   delete (globalThis as any).document;
   delete (globalThis as any).HTMLElement;
   delete (globalThis as any).__triggerCompare;
+  */
 
   console.log("✅ A/B runner renders streamed answers for both profiles");
 }
@@ -224,10 +228,12 @@ async function runAbCompareFallback() {
   });
 
   root.unmount();
+  /*
   delete (globalThis as any).window;
   delete (globalThis as any).document;
   delete (globalThis as any).HTMLElement;
   delete (globalThis as any).__triggerCompare;
+  */
 
   console.log("✅ A/B runner surfaces grounded fallback answers when context is missing");
 }

@@ -3,9 +3,9 @@ import Link from "next/link";
 import ThemeSwitcher from "./ThemeSwitcher";
 
 const navLinks = [
-  { href: "/playground", label: "Playground" },
+  { href: "/laboratory", label: "Laboratory" },
   { href: "/#about", label: "About" },
-  { href: "/#docs", label: "Docs" },
+  { href: "/docs", label: "Docs" },
 ];
 
 export default function SiteNavbar() {
@@ -17,7 +17,7 @@ export default function SiteNavbar() {
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <span className="text-lg font-bold">R</span>
             </span>
-            <span className="text-lg">RAG Playground</span>
+            <span className="text-lg">Scientia</span>
           </Link>
         </div>
         <div className="navbar-center hidden md:flex">

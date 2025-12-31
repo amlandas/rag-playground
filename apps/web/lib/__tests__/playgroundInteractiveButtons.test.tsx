@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import React from "react";
 import { renderToString } from "react-dom/server";
 
-import Playground from "../../app/playground/page";
+import Playground from "../../app/laboratory/page";
 import { AuthProvider } from "../../components/AuthProvider";
 import { TourProvider } from "../../components/TourProvider";
 

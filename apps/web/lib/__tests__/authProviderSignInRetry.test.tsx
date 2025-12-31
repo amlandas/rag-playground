@@ -16,6 +16,8 @@ async function runAuthRetryScenario() {
   Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
   Object.defineProperty(globalThis, "HTMLElement", { value: dom.window.HTMLElement, configurable: true });
   Object.defineProperty(globalThis, "localStorage", { value: dom.window.localStorage, configurable: true });
+  // React 19 / Scheduler fix for JSDOM
+  (dom.window as any).event = { type: "check" };
 
   let loggedIn = false;
 
@@ -48,10 +50,10 @@ async function runAuthRetryScenario() {
     return new Response("{}", { status: 200 });
   };
 
-let credentialCallback: ((payload: { credential: string }) => void) | null = null;
-const promptCallbacks: Array<(notification: any) => void> = [];
-let cancelCount = 0;
-let gisInitialized = false;
+  let credentialCallback: ((payload: { credential: string }) => void) | null = null;
+  const promptCallbacks: Array<(notification: any) => void> = [];
+  let cancelCount = 0;
+  let gisInitialized = false;
 
   const googleStub = {
     accounts: {
@@ -170,6 +172,8 @@ let gisInitialized = false;
   assert.strictEqual(loggedIn, true, "second login should succeed");
 
   root.unmount();
+  // React 19 scheduler might run after test, so we leave the window stub.
+  /*
   delete (globalThis as any).window;
   delete (globalThis as any).document;
   delete (globalThis as any).navigator;
@@ -177,6 +181,7 @@ let gisInitialized = false;
   delete (globalThis as any).localStorage;
   delete (globalThis as any).google;
   delete (globalThis as any).fetch;
+  */
 
   console.log("✅ Auth provider allows sign-in after logout without AbortError");
 }

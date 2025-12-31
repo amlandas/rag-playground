@@ -1,4 +1,4 @@
-# Deployment Guide (Cloud Run)
+# Scientia Deployment Guide (Cloud Run)
 
 This repo ships with helper scripts and Dockerfiles so both services run on Google Cloud Run:
 - **rag-playground-api** – FastAPI backend (`Dockerfile` at repo root).

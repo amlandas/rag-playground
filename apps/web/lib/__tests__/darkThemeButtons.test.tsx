@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 
 const originalGraphFlag = process.env.NEXT_PUBLIC_GRAPH_RAG_ENABLED;
 process.env.NEXT_PUBLIC_GRAPH_RAG_ENABLED = "true";
-const Playground = require("../../app/playground/page").default as typeof import("../../app/playground/page").default;
+const Playground = require("../../app/laboratory/page").default as typeof import("../../app/laboratory/page").default;
 const { AuthProvider } = require("../../components/AuthProvider") as typeof import("../../components/AuthProvider");
 
 function PlaygroundHarness() {

@@ -11,45 +11,47 @@ async function runTest() {
   (globalThis as any).window = dom.window;
   (globalThis as any).document = dom.window.document;
   (globalThis as any).HTMLElement = dom.window.HTMLElement;
+  // React 19 JSDOM/Scheduler fix
+  (dom.window as any).event = { type: "check" };
 
   function Harness({ execute }: { execute: () => Promise<any> }) {
-  const [busy, setBusy] = useState<"idle" | "querying">("idle");
-  const config = useMemo(
-    () => ({
-      state: {
-        sessionId: "session-1",
-        authRequired: false,
-        authGateActive: false,
-        indexed: true,
-        query: "What is the vacation policy?",
-        graphSettings: { k: 4, maxHops: 2, temperature: 0.2, rerank: "ce" as const, verificationMode: "ragv" as const },
-        llmRerankAllowed: true,
-        factCheckLlmAllowed: true,
-      },
-      actions: {
-        setBusy,
-        setAnswer: () => {},
-        setAnswerComplete: () => {},
-        setSources: () => {},
-        setGraphResult: () => {},
-        setGraphTrace: () => {},
-        setShowGraphTrace: () => {},
-        setError: () => {},
-      },
-      friendlyError: (err: unknown) => String(err ?? ""),
-      executeGraphQuery: execute,
-    }),
-    [execute],
-  );
+    const [busy, setBusy] = useState<"idle" | "querying">("idle");
+    const config = useMemo(
+      () => ({
+        state: {
+          sessionId: "session-1",
+          authRequired: false,
+          authGateActive: false,
+          indexed: true,
+          query: "What is the vacation policy?",
+          graphSettings: { k: 4, maxHops: 2, temperature: 0.2, rerank: "ce" as const, verificationMode: "ragv" as const },
+          llmRerankAllowed: true,
+          factCheckLlmAllowed: true,
+        },
+        actions: {
+          setBusy,
+          setAnswer: () => { },
+          setAnswerComplete: () => { },
+          setSources: () => { },
+          setGraphResult: () => { },
+          setGraphTrace: () => { },
+          setShowGraphTrace: () => { },
+          setError: () => { },
+        },
+        friendlyError: (err: unknown) => String(err ?? ""),
+        executeGraphQuery: execute,
+      }),
+      [execute],
+    );
 
-  const runGraph = useGraphRunner(config);
-  return (
-    <button data-testid="run" onClick={() => {
-      void runGraph();
-    }}>
-      {busy}
-    </button>
-  );
+    const runGraph = useGraphRunner(config);
+    return (
+      <button data-testid="run" onClick={() => {
+        void runGraph();
+      }}>
+        {busy}
+      </button>
+    );
   }
 
   const container = window.document.getElementById("root") as HTMLElement;
@@ -83,9 +85,11 @@ async function runTest() {
   });
 
   root.unmount();
+  /*
   delete (globalThis as any).window;
   delete (globalThis as any).document;
   delete (globalThis as any).HTMLElement;
+  */
 
   console.log("✅ Graph run executes on first click and sets loading state");
 }
