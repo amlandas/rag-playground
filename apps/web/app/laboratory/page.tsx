@@ -6,6 +6,7 @@ import FeedbackBar from "../../components/FeedbackBar";
 import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
 import HealthBadge from "../../components/HealthBadge";
 import ProfileAnswerCard from "../../components/ProfileAnswerCard";
+import VoteControls from "../../components/VoteControls";
 import MetricsDrawer from "../../components/MetricsDrawer";
 import Uploader from "../../components/Uploader";
 import UploadLimitHint from "../../components/UploadLimitHint";
@@ -21,6 +22,7 @@ import {
   queryAdvancedGraph,
   querySSE,
   uploadFiles,
+  runEval,
   type AdvancedQueryPayload,
 } from "../../lib/rag-api";
 import { renderMarkdown } from "../../lib/renderMarkdown";
@@ -29,16 +31,21 @@ import { normalizeTopKInput, normalizeMaxHopsInput, normalizeTemperatureInput } 
 import { useGraphRunner } from "../../lib/useGraphRunner";
 import { useCompareRunner } from "../../lib/useCompareRunner";
 import type {
-  AdminMetricsSummary,
   AdvancedQueryResponse,
   AnswerMode,
   CompareProfile,
   ConfidenceLevel,
   GraphRagTrace,
   HealthDetails,
+  EvalResult,
+  MetricsSummary,
   RetrievedChunk,
+
   RetrievedPrelude,
+  RunHistoryItem,
 } from "../../lib/types";
+import HistoryDrawer from "../../components/HistoryDrawer";
+import { fetchHistory } from "../../lib/rag-api";
 
 const ANSWER_MODE_DEFAULT = (
   process.env.NEXT_PUBLIC_ANSWER_MODE_DEFAULT?.toLowerCase() === "blended" ? "blended" : "grounded"
@@ -144,7 +151,7 @@ export default function Playground() {
     detail: "",
   });
   const [refreshingSession, setRefreshingSession] = useState(false);
-  const [metricsSummary, setMetricsSummary] = useState<AdminMetricsSummary | null>(null);
+  const [metricsSummary, setMetricsSummary] = useState<MetricsSummary | null>(null);
   const [healthDetails, setHealthDetails] = useState<HealthDetails | null>(null);
   const [gcsIngestionEffective, setGcsIngestionEffective] = useState(
     (process.env.NEXT_PUBLIC_GCS_INGESTION_ENABLED ?? "false").toLowerCase() === "true",
@@ -161,6 +168,7 @@ export default function Playground() {
   const [mode, setMode] = useState<PlaygroundMode>(
     GRAPH_MODE_ENABLED ? "graph" : "simple",
   );
+  const [starterPrompts, setStarterPrompts] = useState<string[]>([]);
 
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
@@ -169,6 +177,12 @@ export default function Playground() {
   const [confidence, setConfidence] = useState<ConfidenceLevel | null>(null);
   const [sources, setSources] = useState<RetrievedChunk[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [evalResult, setEvalResult] = useState<EvalResult | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [evalResultA, setEvalResultA] = useState<EvalResult | null>(null);
+  const [evalLoadingA, setEvalLoadingA] = useState(false);
+  const [evalResultB, setEvalResultB] = useState<EvalResult | null>(null);
+  const [evalLoadingB, setEvalLoadingB] = useState(false);
 
   const [profileA, setProfileA] = useState<CompareProfile>({
     name: "A",
@@ -194,6 +208,7 @@ export default function Playground() {
   const [answerBComplete, setAnswerBComplete] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [queryId, setQueryId] = useState<string | null>(null);
+  const [vote, setVote] = useState<"A" | "B" | "tie" | undefined>(undefined);
   const [graphSettings, setGraphSettings] = useState({
     k: 6,
     maxHops: 2,
@@ -204,6 +219,65 @@ export default function Playground() {
   const [graphResult, setGraphResult] = useState<AdvancedQueryResponse | null>(null);
   const [graphTrace, setGraphTrace] = useState<GraphRagTrace | null>(null);
   const [showGraphTrace, setShowGraphTrace] = useState(false);
+
+  const [history, setHistory] = useState<RunHistoryItem[]>([]);
+
+  const refreshHistory = useCallback(async () => {
+    if (!sessionId) {
+      setHistory([]);
+      return;
+    }
+    try {
+      const h = await fetchHistory(sessionId);
+      setHistory(h);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("[history] failed", e);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory]);
+
+  const handleHistorySelect = useCallback(
+    (item: RunHistoryItem) => {
+      setQuery(item.query);
+      setAnswer(item.answer);
+      setQueryId(item.run_id);
+      setAnswerComplete(true);
+
+      const m = item.mode;
+      if (m === "graph") {
+        setMode("graph");
+      } else if (m === "advanced") {
+        setMode("advanced");
+        if (item.result_a) {
+          setAnswerA(item.result_a.answer);
+          setRetrievedA(item.result_a.sources);
+          setAnswerAComplete(true);
+        }
+        if (item.result_b) {
+          setAnswerB(item.result_b.answer);
+          setRetrievedB(item.result_b.sources);
+          setAnswerBComplete(true);
+        }
+        setVote(item.vote);
+      } else {
+        setMode("simple");
+        setAnswerMode(m as AnswerMode);
+      }
+
+      // Restore common
+      if (item.sources) {
+        // Simple/Graph sources
+        setSources(item.sources as RetrievedChunk[]);
+      }
+      setConfidence(item.metrics.confidence ?? null);
+      setBusy("idle");
+    },
+    [setMode, setAnswerMode],
+  );
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
@@ -227,6 +301,10 @@ export default function Playground() {
   useEffect(() => {
     if (mode !== "advanced") {
       setCompareError(null);
+    } else {
+      // Clear evals when switching away from A/B
+      setEvalResultA(null);
+      setEvalResultB(null);
     }
   }, [mode]);
 
@@ -350,15 +428,36 @@ export default function Playground() {
   );
 
   async function useSamples() {
-    const files = await fetchSampleFiles();
-    setFilesChosen(files);
-    setSessionId(null);
-    setIndexed(false);
-    setAnswer("");
-    setConfidence(null);
-    setSources([]);
+    if (authGateActive) return;
+    setBusy("uploading");
+    setFilesChosen([]);
+    setStarterPrompts([]);
     setError(null);
-    setQueryId(null);
+
+    try {
+      const files = await fetchSampleFiles();
+      setFilesChosen(files);
+
+      const uploadRes = await uploadFiles(files);
+      setSessionId(uploadRes.session_id);
+
+      setBusy("indexing");
+      await buildIndex(uploadRes.session_id, { chunk_size: 800, overlap: 120 });
+      setIndexed(true);
+
+      setStarterPrompts([
+        "What is the vacation policy?",
+        "How many sick days are allowed?",
+        "Summarize the research methodology.",
+        "What is the remote work policy?",
+      ]);
+    } catch (err: any) {
+      setError(friendlyError(err));
+      setFilesChosen([]);
+      setSessionId(null);
+    } finally {
+      setBusy("idle");
+    }
   }
 
   function validateFileSizes(files: File[]): boolean {
@@ -394,6 +493,7 @@ export default function Playground() {
     setConfidence(null);
     setSources([]);
     setError(null);
+    setStarterPrompts([]);
     setQueryId(null);
   }
 
@@ -440,6 +540,48 @@ export default function Playground() {
     }
   }
 
+  async function doEval() {
+    if (!answer) return;
+    setEvalLoading(true);
+    setEvalResult(null);
+    try {
+      const res = await runEval(query, answer, sources);
+      setEvalResult(res);
+    } catch (err: any) {
+      setError(friendlyError(err));
+    } finally {
+      setEvalLoading(false);
+    }
+  }
+
+  async function doEvalA() {
+    if (!answerA) return;
+    setEvalLoadingA(true);
+    setEvalResultA(null);
+    try {
+      const res = await runEval(query, answerA, retrievedA);
+      setEvalResultA(res);
+    } catch (err: any) {
+      setCompareError(friendlyError(err));
+    } finally {
+      setEvalLoadingA(false);
+    }
+  }
+
+  async function doEvalB() {
+    if (!answerB) return;
+    setEvalLoadingB(true);
+    setEvalResultB(null);
+    try {
+      const res = await runEval(query, answerB, retrievedB);
+      setEvalResultB(res);
+    } catch (err: any) {
+      setCompareError(friendlyError(err));
+    } finally {
+      setEvalLoadingB(false);
+    }
+  }
+
   async function doQuerySimple() {
     if (!sessionId) return;
     if (authRequired) {
@@ -454,6 +596,7 @@ export default function Playground() {
     setSources([]);
     setError(null);
     setQueryId(null);
+    setEvalResult(null);
     await querySSE(
       sessionId,
       { query, k: 4, similarity: "cosine", temperature: 0.2, model: "gpt-4o-mini", mode: answerMode },
@@ -471,6 +614,7 @@ export default function Playground() {
         onDone: () => {
           setBusy("idle");
           setAnswerComplete(true);
+          void refreshHistory();
         },
         onError: (err) => {
           setError(friendlyError(err));
@@ -547,6 +691,7 @@ export default function Playground() {
         setAnswerBComplete,
         setCompareError,
         setError,
+        setLastRunId: setQueryId,
       },
       friendlyError,
     }),
@@ -589,9 +734,12 @@ export default function Playground() {
   }, [filesChosen, authRequired, authGateActive]);
 
   useEffect(() => {
-    if (mode !== "simple") {
+    if (mode !== "simple" && mode !== "advanced") {
       setQueryId(null);
       setConfidence(null);
+    }
+    if (mode !== "advanced") {
+      setVote(undefined);
     }
   }, [mode]);
 
@@ -805,8 +953,9 @@ export default function Playground() {
                       {mode === "advanced" ? (
                         <button
                           type="button"
-                          onClick={() => {
-                            void runCompare();
+                          onClick={async () => {
+                            await runCompare();
+                            void refreshHistory();
                           }}
                           className="btn btn-primary interactive-button"
                           disabled={!canCompare}
@@ -832,6 +981,21 @@ export default function Playground() {
                       ) : null}
                     </div>
                   </div>
+                  {starterPrompts.length > 0 && (
+                    <div className="flex flex-wrap gap-2 animate-in fade-in zoom-in duration-300">
+                      <span className="text-xs font-semibold py-1 text-base-content/70">Try these:</span>
+                      {starterPrompts.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setQuery(p)}
+                          className="badge badge-outline badge-md cursor-pointer hover:bg-primary hover:text-white transition-colors"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {mode === "graph" ? (
                     <div
                       className="rounded-box border border-dashed border-base-300 bg-base-100/80 p-4 text-xs text-base-content/80 md:grid md:grid-cols-2 md:gap-4"
@@ -947,6 +1111,53 @@ export default function Playground() {
                                 ? <SkeletonBlock lines={5} />
                                 : "Graph RAG answer will appear here."}
                           </div>
+
+                          {/* Eval UI for Graph Mode */}
+                          <div className="flex flex-col gap-2 mt-2">
+                            <div className="flex flex-wrap justify-between items-center">
+                              {answerComplete && !evalResult ? (
+                                <button
+                                  type="button"
+                                  onClick={doEval}
+                                  className="btn btn-xs btn-outline"
+                                  disabled={evalLoading}
+                                >
+                                  {evalLoading ? "Running Eval..." : "Run Eval (LLM Judge)"}
+                                </button>
+                              ) : null}
+                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-4o" /> : null}
+                            </div>
+
+                            {evalResult ? (
+                              <div className="rounded-box border border-info/20 bg-info/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-xs font-bold uppercase text-info tracking-wide flex items-center gap-2">
+                                    <span>🛡️ LLM Evaluation</span>
+                                  </h4>
+                                  <button onClick={() => setEvalResult(null)} className="btn btn-ghost btn-xs btn-circle">×</button>
+                                </div>
+                                <div className="flex gap-4">
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase text-base-content/60">Faithfulness</span>
+                                    <span className={`text-lg font-bold ${evalResult.faithfulness > 0.7 ? "text-success" : "text-warning"}`}>
+                                      {(evalResult.faithfulness * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase text-base-content/60">Relevance</span>
+                                    <span className={`text-lg font-bold ${evalResult.relevance > 0.7 ? "text-success" : "text-warning"}`}>
+                                      {(evalResult.relevance * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-base-content/80 border-t border-info/10 pt-2 mt-1">
+                                  <span className="font-semibold text-info/80">Reasoning: </span>
+                                  {evalResult.reasoning}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+
                           {graphResult?.verification ? (
                             <div className="rounded-box border border-base-300 bg-base-200/60 p-3 text-xs text-base-content/80">
                               <div className="text-xs font-semibold uppercase text-base-content/60">Verification</div>
@@ -1022,6 +1233,53 @@ export default function Playground() {
                           <div className="prose prose-sm max-h-[60vh] min-h-[200px] overflow-auto rounded-box border border-base-300 bg-base-100 p-4">
                             {renderMarkdown(answer, "Answer stream will appear here.")}
                           </div>
+
+                          {/* Eval UI */}
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap justify-between items-center">
+                              {answerComplete && !evalResult ? (
+                                <button
+                                  type="button"
+                                  onClick={doEval}
+                                  className="btn btn-xs btn-outline"
+                                  disabled={evalLoading}
+                                >
+                                  {evalLoading ? "Running Eval..." : "Run Eval (LLM Judge)"}
+                                </button>
+                              ) : null}
+                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-4o" /> : null}
+                            </div>
+
+                            {evalResult ? (
+                              <div className="rounded-box border border-info/20 bg-info/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-xs font-bold uppercase text-info tracking-wide flex items-center gap-2">
+                                    <span>🛡️ LLM Evaluation</span>
+                                  </h4>
+                                  <button onClick={() => setEvalResult(null)} className="btn btn-ghost btn-xs btn-circle">×</button>
+                                </div>
+                                <div className="flex gap-4">
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase text-base-content/60">Faithfulness</span>
+                                    <span className={`text-lg font-bold ${evalResult.faithfulness > 0.7 ? "text-success" : "text-warning"}`}>
+                                      {(evalResult.faithfulness * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase text-base-content/60">Relevance</span>
+                                    <span className={`text-lg font-bold ${evalResult.relevance > 0.7 ? "text-success" : "text-warning"}`}>
+                                      {(evalResult.relevance * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-base-content/80 border-t border-info/10 pt-2 mt-1">
+                                  <span className="font-semibold text-info/80">Reasoning: </span>
+                                  {evalResult.reasoning}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+
                           <div className="flex flex-wrap justify-end gap-2 text-xs">
                             <button
                               type="button"
@@ -1102,6 +1360,16 @@ export default function Playground() {
                               />
                             ))}
                           </div>
+                          {answerAComplete && answerBComplete && sessionId && queryId ? (
+                            <div className="mt-6 flex justify-center">
+                              <VoteControls
+                                sessionId={sessionId}
+                                runId={queryId}
+                                initialVote={vote}
+                                disabled={busy === "comparing"}
+                              />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>

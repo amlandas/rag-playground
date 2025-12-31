@@ -15,7 +15,7 @@ async function runTest() {
   (dom.window as any).event = { type: "check" };
 
   function Harness({ execute }: { execute: () => Promise<any> }) {
-    const [busy, setBusy] = useState<"idle" | "querying">("idle");
+    const [busy, setBusy] = useState<"idle" | "uploading" | "indexing" | "querying" | "comparing">("idle");
     const config = useMemo(
       () => ({
         state: {

@@ -1,7 +1,7 @@
 import React from "react";
 
 import { renderMarkdown } from "../lib/renderMarkdown";
-import type { RetrievedChunk } from "../lib/types";
+import type { RetrievedChunk, EvalResult } from "../lib/types";
 
 type Props = {
   label: string;
@@ -10,15 +10,61 @@ type Props = {
   sources: RetrievedChunk[];
   onCopy: () => void;
   onDownload: () => void;
+  metrics?: { latency_ms?: number; tokens_in?: number; tokens_out?: number };
+  evalResult?: EvalResult | null;
+  evalLoading?: boolean;
+  onRunEval?: () => void;
 };
 
-export default function ProfileAnswerCard({ label, answer, isComplete, sources, onCopy, onDownload }: Props) {
+export default function ProfileAnswerCard({
+  label,
+  answer,
+  isComplete,
+  sources,
+  onCopy,
+  onDownload,
+  evalResult,
+  evalLoading,
+  onRunEval,
+}: Props) {
   return (
     <div className="space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
       <div className="text-sm font-semibold">{label}</div>
       <div className="prose prose-sm max-h-[60vh] min-h-[160px] overflow-auto rounded-box border border-base-200 bg-base-100 p-3">
         {renderMarkdown(answer, `${label} stream will appear here.`)}
       </div>
+
+      {onRunEval && answer && (
+        <div className="mt-2 space-y-2">
+          <div className="flex justify-between items-center">
+            {!evalResult && (
+              <button
+                onClick={onRunEval}
+                disabled={evalLoading}
+                className="btn btn-xs btn-outline"
+              >
+                {evalLoading ? "Running Judge..." : "Run Eval"}
+              </button>
+            )}
+          </div>
+
+          {evalResult && (
+            <div className="rounded-box border border-base-200 bg-base-100 p-2 text-xs space-y-1">
+              <div className="flex gap-3 font-semibold">
+                <span className={evalResult.faithfulness > 0.7 ? "text-success" : "text-warning"}>
+                  Faith: {(evalResult.faithfulness * 100).toFixed(0)}%
+                </span>
+                <span className={evalResult.relevance > 0.7 ? "text-success" : "text-warning"}>
+                  Rel: {(evalResult.relevance * 100).toFixed(0)}%
+                </span>
+              </div>
+              <p className="text-base-content/70 italic">{evalResult.reasoning}</p>
+              <button onClick={() => { if (onRunEval) onRunEval(); }} className="btn btn-ghost btn-xs text-[10px]">Re-run</button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 text-xs">
         <button type="button" onClick={onCopy} disabled={!answer} className="btn btn-ghost btn-xs">
           Copy
@@ -32,9 +78,16 @@ export default function ProfileAnswerCard({ label, answer, isComplete, sources, 
           Download .md
         </button>
       </div>
-      <div>
-        <div className="text-xs font-semibold uppercase text-base-content/60">Sources</div>
-        <div className="rounded-box border border-base-200 bg-base-200/60 p-2">
+      <details className="group">
+        <summary className="cursor-pointer list-none">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase text-base-content/60 hover:text-base-content transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 transition-transform group-open:rotate-90">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+            Show Evidence ({sources.length})
+          </div>
+        </summary>
+        <div className="mt-2 rounded-box border border-base-200 bg-base-200/60 p-2">
           {sources.length ? (
             <ul className="space-y-2 text-sm">
               {sources.map((source) => (
@@ -45,10 +98,10 @@ export default function ProfileAnswerCard({ label, answer, isComplete, sources, 
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-base-content/60">—</p>
+            <p className="text-sm text-base-content/60">No retrieval evidence available.</p>
           )}
         </div>
-      </div>
+      </details>
     </div>
   );
 }

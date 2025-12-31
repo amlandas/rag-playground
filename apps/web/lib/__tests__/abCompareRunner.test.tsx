@@ -18,7 +18,7 @@ function Harness({
   executeCompare: NonNullable<ExecuteCompare>;
   streamAnswer: NonNullable<StreamAnswer>;
 }) {
-  const [busy, setBusy] = useState<"idle" | "comparing">("idle");
+  const [busy, setBusy] = useState<"idle" | "uploading" | "indexing" | "querying" | "comparing">("idle");
   const [retrievedA, setRetrievedA] = useState<RetrievedChunk[]>([]);
   const [retrievedB, setRetrievedB] = useState<RetrievedChunk[]>([]);
   const [answerA, setAnswerA] = useState("");
@@ -72,6 +72,7 @@ function Harness({
         setAnswerBComplete,
         setCompareError,
         setError,
+        setLastRunId: () => { },
       },
       friendlyError: (err: unknown) => String(err ?? ""),
       executeCompare,

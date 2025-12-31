@@ -125,7 +125,7 @@ export default function GraphRagTraceViewer({ trace }: Props) {
               <>
                 <div className="text-xs text-base-content/70">Mode: {trace.verification.mode}</div>
                 <div className="text-xs text-base-content/70">
-                  Coverage: {(trace.verification.coverage * 100).toFixed(0)}%
+                  Coverage: {(trace.verification?.coverage ?? 0 * 100).toFixed(0)}%
                 </div>
                 {trace.verification.reason ? (
                   <div className="text-xs text-base-content/70">{trace.verification.reason}</div>

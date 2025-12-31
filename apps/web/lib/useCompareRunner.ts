@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
 import { toSnippetPayload, type SnippetPayload } from "./abSnippets";
-import { answerFromSnippetsSSE, compareRetrieval } from "./rag-api";
-import type { CompareProfile, RetrievedChunk } from "./types";
+import { answerFromSnippetsSSE, compareRetrieval, recordHistoryItem } from "./rag-api";
+import type { CompareProfile, RetrievedChunk, RunHistoryItem } from "./types";
 
 type BusyState = "idle" | "uploading" | "indexing" | "querying" | "comparing";
 
@@ -26,6 +26,7 @@ type CompareRunnerActions = {
   setAnswerBComplete: Dispatch<SetStateAction<boolean>>;
   setCompareError: Dispatch<SetStateAction<string | null>>;
   setError: Dispatch<SetStateAction<string | null>>;
+  setLastRunId: Dispatch<SetStateAction<string | null>>;
 };
 
 type Config = {
@@ -62,6 +63,7 @@ export function useCompareRunner(config: Config) {
       setAnswerBComplete,
       setCompareError,
       setError,
+      setLastRunId,
     } = actions;
 
     if (!sessionId) {
@@ -98,6 +100,7 @@ export function useCompareRunner(config: Config) {
     setAnswerB("");
     setAnswerAComplete(false);
     setAnswerBComplete(false);
+    setLastRunId(null);
 
     let retrievedA: RetrievedChunk[] = [];
     let retrievedB: RetrievedChunk[] = [];
@@ -129,7 +132,8 @@ export function useCompareRunner(config: Config) {
       snippets: SnippetPayload,
       setAnswer: Dispatch<SetStateAction<string>>,
       markComplete: Dispatch<SetStateAction<boolean>>,
-    ) => {
+    ): Promise<string | null> => {
+      let fullAnswer = "";
       let streamFailure: string | null = null;
       await streamAnswer(
         query,
@@ -137,6 +141,7 @@ export function useCompareRunner(config: Config) {
         { model: profile.model, temperature: profile.temperature },
         {
           onToken: (token) => {
+            fullAnswer += token;
             setAnswer((prev) => prev + token);
           },
           onDone: () => {
@@ -150,20 +155,37 @@ export function useCompareRunner(config: Config) {
       if (streamFailure) {
         setCompareError(streamFailure);
         setError(streamFailure);
-        return false;
+        return null;
       }
-      return true;
+      return fullAnswer;
     };
 
     try {
-      const aOk = await runProfileAnswer(profileA, snippetA, setAnswerA, setAnswerAComplete);
-      if (!aOk) {
-        return;
-      }
-      const bOk = await runProfileAnswer(profileB, snippetB, setAnswerB, setAnswerBComplete);
-      if (!bOk) {
-        return;
-      }
+      const ansA = await runProfileAnswer(profileA, snippetA, setAnswerA, setAnswerAComplete);
+      if (ansA === null) return;
+
+      const ansB = await runProfileAnswer(profileB, snippetB, setAnswerB, setAnswerBComplete);
+      if (ansB === null) return;
+
+      // Record history
+      const runId = crypto.randomUUID();
+      const now = Date.now() / 1000;
+
+      const item: RunHistoryItem = {
+        run_id: runId,
+        timestamp: now,
+        mode: "advanced",
+        query,
+        answer: "[A/B Comparison]",
+        sources: [],
+        metrics: { latency_ms: 0 },
+        result_a: { answer: ansA, sources: retrievedA },
+        result_b: { answer: ansB, sources: retrievedB },
+      };
+
+      await recordHistoryItem(sessionId, item);
+      setLastRunId(runId);
+
     } catch (error) {
       const message = friendlyError(error);
       setCompareError(message);

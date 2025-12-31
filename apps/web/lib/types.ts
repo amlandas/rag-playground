@@ -77,7 +77,7 @@ export type MetricsEvent = {
 };
 
 export type MetricsResponse = {
-  summary: MetricsSummary;
+  summary: AdminMetricsSummary;
   events: MetricsEvent[];
   feedback: { query_id: string; rating: number; reason?: string; ts: number }[];
 };
@@ -160,6 +160,8 @@ export type GraphRagTraceRetrievalHit = {
 export type GraphRagTraceVerificationResult = {
   verdict: string;
   reason?: string | null;
+  mode?: string;
+  coverage?: number;
 };
 
 export type GraphRagTraceSynthesisNote = {
@@ -186,4 +188,30 @@ export type AdvancedQueryResponse = {
   citations: Array<Record<string, unknown>>;
   verification?: AdvancedVerificationSummary | null;
   trace?: GraphRagTrace | null;
+};
+
+export type RunHistoryItem = {
+  run_id: string;
+  timestamp: number;
+  mode: AnswerMode | "graph" | "advanced"; // "simple" maps to AnswerMode
+  query: string;
+  answer: string;
+  sources: RetrievedChunk[] | AdvancedRetrievedMeta[]; // Simple vs Advanced
+  metrics: {
+    latency_ms: number;
+    confidence?: ConfidenceLevel | null;
+    tokens_in?: number;
+    tokens_out?: number;
+  };
+  params?: Record<string, any>;
+  result_a?: { answer: string; sources: RetrievedChunk[] };
+  result_b?: { answer: string; sources: RetrievedChunk[] };
+  vote?: "A" | "B" | "tie";
+};
+
+
+export type EvalResult = {
+  faithfulness: number;
+  relevance: number;
+  reasoning: string;
 };

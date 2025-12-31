@@ -9,9 +9,12 @@ import type {
   CompareRequest,
   CompareResult,
   HealthDetails,
+  EvalResult,
   IndexResponse,
   MetricsResponse,
+  MetricsSummary,
   RetrievedChunk,
+  RunHistoryItem,
   UploadResponse,
 } from "./types";
 
@@ -150,7 +153,7 @@ export async function fetchMetrics(limit = 25): Promise<MetricsResponse> {
   return res.json();
 }
 
-export async function fetchMetricsSummary(): Promise<AdminMetricsSummary> {
+export async function fetchMetricsSummary(): Promise<MetricsSummary> {
   const res = await fetch(`${getApiBaseUrl()}/api/metrics/summary`, {
     method: "GET",
     credentials: "include",
@@ -159,7 +162,7 @@ export async function fetchMetricsSummary(): Promise<AdminMetricsSummary> {
   if (!res.ok) {
     throw new Error(await res.text());
   }
-  return (await res.json()) as AdminMetricsSummary;
+  return (await res.json()) as MetricsSummary;
 }
 
 export async function fetchHealthDetails(): Promise<HealthDetails> {
@@ -230,4 +233,60 @@ export async function queryAdvancedGraph(body: AdvancedQueryPayload): Promise<Ad
     throw new Error(await res.text());
   }
   return (await res.json()) as AdvancedQueryResponse;
+}
+
+export async function fetchHistory(sessionId: string): Promise<RunHistoryItem[]> {
+  const res = await fetch(`${getApiBaseUrl()}/api/history?session_id=${sessionId}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    if (res.status === 404) return [];
+    throw new Error(await res.text());
+  }
+  return (await res.json()) as RunHistoryItem[];
+}
+
+export async function recordHistoryItem(sessionId: string, item: Partial<RunHistoryItem>) {
+  const res = await fetch(`${getApiBaseUrl()}/api/history/record`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, item }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return res.json();
+}
+
+export async function castRunVote(sessionId: string, runId: string, vote: "A" | "B" | "tie", reason?: string) {
+  const res = await fetch(`${getApiBaseUrl()}/api/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, run_id: runId, vote, reason }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return res.json();
+}
+
+export async function runEval(
+  query: string,
+  answer: string,
+  sources?: RetrievedChunk[]
+): Promise<EvalResult> {
+  const res = await fetch(`${getApiBaseUrl()}/api/eval`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, answer, sources }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return (await res.json()) as EvalResult;
 }

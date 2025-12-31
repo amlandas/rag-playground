@@ -21,6 +21,7 @@ export default function FeedbackBar({ queryId }: { queryId: string | null }) {
   }
 
   async function submit(rating: -1 | 1) {
+    if (!queryId) return;
     try {
       setSending(rating === 1 ? "up" : "down");
       setError(null);
