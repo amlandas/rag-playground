@@ -284,6 +284,7 @@ export async function runEval(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, answer, sources }),
     credentials: "include",
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await res.text());

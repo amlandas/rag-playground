@@ -53,7 +53,7 @@ def evaluate_answer(query: str, answer: str, context: str) -> EvalResult:
                 {"role": "system", "content": "You are a fair and critical RAG evaluator. Output JSON only."},
                 {"role": "user", "content": PROMPT.format(query=query, context=context, answer=answer)}
             ],
-            temperature=0.0,
+            temperature=0.2,
             response_format={"type": "json_object"}
         )
         

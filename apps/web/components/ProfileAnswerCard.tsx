@@ -47,6 +47,11 @@ export default function ProfileAnswerCard({
               </button>
             )}
           </div>
+          {!evalResult && (
+            <div className="text-[10px] text-base-content/50 italic px-1">
+              Note: AI-based evals may produce non-deterministic results.
+            </div>
+          )}
 
           {evalResult && (
             <div className="rounded-box border border-base-200 bg-base-100 p-2 text-xs space-y-1">

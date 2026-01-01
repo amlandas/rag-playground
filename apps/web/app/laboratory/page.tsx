@@ -1129,6 +1129,9 @@ export default function Playground() {
                               ) : null}
                               {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-5-mini" /> : null}
                             </div>
+                            <div className="text-[10px] text-base-content/50 italic px-1">
+                              Note: AI-based evals may produce non-deterministic results.
+                            </div>
 
                             {evalResult ? (
                               <div className="rounded-box border border-info/20 bg-info/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
