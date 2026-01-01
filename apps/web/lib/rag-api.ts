@@ -143,8 +143,7 @@ export async function sendFeedback(query_id: string, rating: -1 | 1, reason?: st
 }
 
 export async function fetchMetrics(limit = 25): Promise<MetricsResponse> {
-  const res = await fetch(`${getApiBaseUrl()}/api/metrics?limit=${limit}`, {
-    cache: "no-store",
+  const res = await fetch(`${getApiBaseUrl()}/api/metrics?limit=${limit}&ts=${Date.now()}`, {
     credentials: "include",
   });
   if (!res.ok) {
@@ -154,10 +153,9 @@ export async function fetchMetrics(limit = 25): Promise<MetricsResponse> {
 }
 
 export async function fetchMetricsSummary(): Promise<MetricsSummary> {
-  const res = await fetch(`${getApiBaseUrl()}/api/metrics/summary`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/metrics/summary?ts=${Date.now()}`, {
     method: "GET",
     credentials: "include",
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await res.text());
@@ -166,9 +164,8 @@ export async function fetchMetricsSummary(): Promise<MetricsSummary> {
 }
 
 export async function fetchHealthDetails(): Promise<HealthDetails> {
-  const res = await fetch(`${getApiBaseUrl()}/api/health/details`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/health/details?ts=${Date.now()}`, {
     method: "GET",
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await res.text());
@@ -177,10 +174,9 @@ export async function fetchHealthDetails(): Promise<HealthDetails> {
 }
 
 export async function fetchSession(): Promise<AuthSession> {
-  const res = await fetch(`${getApiBaseUrl()}/api/auth/me`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/me?ts=${Date.now()}`, {
     method: "GET",
     credentials: "include",
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await res.text());
@@ -236,10 +232,9 @@ export async function queryAdvancedGraph(body: AdvancedQueryPayload): Promise<Ad
 }
 
 export async function fetchHistory(sessionId: string): Promise<RunHistoryItem[]> {
-  const res = await fetch(`${getApiBaseUrl()}/api/history?session_id=${sessionId}`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/history?session_id=${sessionId}&ts=${Date.now()}`, {
     method: "GET",
     credentials: "include",
-    cache: "no-store",
   });
   if (!res.ok) {
     if (res.status === 404) return [];
@@ -279,12 +274,11 @@ export async function runEval(
   answer: string,
   sources?: RetrievedChunk[]
 ): Promise<EvalResult> {
-  const res = await fetch(`${getApiBaseUrl()}/api/eval`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/eval?ts=${Date.now()}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, answer, sources }),
     credentials: "include",
-    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error(await res.text());
