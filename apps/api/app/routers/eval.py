@@ -11,10 +11,36 @@ class EvalRequest(BaseModel):
     sources: Optional[List[Dict[str, Any]]] = None
     context_text: Optional[str] = None
 
+class UnsupportedClaim(BaseModel):
+    claim: str
+    reason: str
+
+class IrrelevantSpan(BaseModel):
+    chunk_id: str
+    reason: str
+
 class EvalResponse(BaseModel):
-    faithfulness: float
-    relevance: float
-    reasoning: str
+    answer_relevance_score: float
+    answer_relevance_analysis: str
+    
+    faithfulness_score: float
+    hallucination_rate: float
+    unsupported_claims: List[UnsupportedClaim]
+    
+    context_precision_score: float
+    irrelevant_context_spans: List[IrrelevantSpan]
+    
+    context_recall_score: float
+    missing_information: List[str]
+    
+    answer_completeness_score: float
+    missing_key_points: List[str]
+    
+    conciseness_score: float
+    unnecessary_content_summary: str
+    
+    overall_quality_score: float
+    overall_comments: str
 
 @router.post("/eval", response_model=EvalResponse)
 async def run_evaluation(payload: EvalRequest):
@@ -38,8 +64,4 @@ async def run_evaluation(payload: EvalRequest):
         context=context
     )
     
-    return EvalResponse(
-        faithfulness=result["faithfulness"],
-        relevance=result["relevance"],
-        reasoning=result["reasoning"]
-    )
+    return EvalResponse(**result)

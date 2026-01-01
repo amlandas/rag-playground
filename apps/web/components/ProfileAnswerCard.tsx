@@ -2,6 +2,7 @@ import React from "react";
 
 import { renderMarkdown } from "../lib/renderMarkdown";
 import type { RetrievedChunk, EvalResult } from "../lib/types";
+import ScientificEvalDisplay from "./ScientificEvalDisplay";
 
 type Props = {
   label: string;
@@ -53,19 +54,9 @@ export default function ProfileAnswerCard({
             </div>
           )}
 
+
           {evalResult && (
-            <div className="rounded-box border border-base-200 bg-base-100 p-2 text-xs space-y-1">
-              <div className="flex gap-3 font-semibold">
-                <span className={evalResult.faithfulness > 0.7 ? "text-success" : "text-warning"}>
-                  Faith: {(evalResult.faithfulness * 100).toFixed(0)}%
-                </span>
-                <span className={evalResult.relevance > 0.7 ? "text-success" : "text-warning"}>
-                  Rel: {(evalResult.relevance * 100).toFixed(0)}%
-                </span>
-              </div>
-              <p className="text-base-content/70 italic">{evalResult.reasoning}</p>
-              <button onClick={() => { if (onRunEval) onRunEval(); }} className="btn btn-ghost btn-xs text-[10px]">Re-run</button>
-            </div>
+            <ScientificEvalDisplay result={evalResult} onReRun={onRunEval} />
           )}
         </div>
       )}

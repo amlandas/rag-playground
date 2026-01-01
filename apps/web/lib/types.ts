@@ -210,8 +210,36 @@ export type RunHistoryItem = {
 };
 
 
+export type UnsupportedClaim = {
+  claim: string;
+  reason: string;
+};
+
+export type IrrelevantSpan = {
+  chunk_id: string;
+  reason: string;
+};
+
 export type EvalResult = {
-  faithfulness: number;
-  relevance: number;
-  reasoning: string;
+  answer_relevance_score: number;
+  answer_relevance_analysis: string;
+
+  faithfulness_score: number;
+  hallucination_rate: number;
+  unsupported_claims: UnsupportedClaim[];
+
+  context_precision_score: number;
+  irrelevant_context_spans: IrrelevantSpan[];
+
+  context_recall_score: number;
+  missing_information: string[];
+
+  answer_completeness_score: number;
+  missing_key_points: string[];
+
+  conciseness_score: number;
+  unnecessary_content_summary: string;
+
+  overall_quality_score: number;
+  overall_comments: string;
 };

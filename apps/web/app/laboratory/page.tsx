@@ -8,6 +8,7 @@ import HealthBadge from "../../components/HealthBadge";
 import ProfileAnswerCard from "../../components/ProfileAnswerCard";
 import VoteControls from "../../components/VoteControls";
 import MetricsDrawer from "../../components/MetricsDrawer";
+import ScientificEvalDisplay from "../../components/ScientificEvalDisplay";
 import Uploader from "../../components/Uploader";
 import UploadLimitHint from "../../components/UploadLimitHint";
 import SkeletonLine, { SkeletonBlock } from "../../components/Skeletons";
@@ -1135,30 +1136,10 @@ export default function Playground() {
 
                             {evalResult ? (
                               <div className="rounded-box border border-info/20 bg-info/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-xs font-bold uppercase text-info tracking-wide flex items-center gap-2">
-                                    <span>🛡️ LLM Evaluation</span>
-                                  </h4>
-                                  <button onClick={() => setEvalResult(null)} className="btn btn-ghost btn-xs btn-circle">×</button>
+                                <div className="flex justify-end mb-1">
+                                  <button onClick={() => setEvalResult(null)} className="btn btn-ghost btn-xs btn-circle text-base-content/50">×</button>
                                 </div>
-                                <div className="flex gap-4">
-                                  <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase text-base-content/60">Faithfulness</span>
-                                    <span className={`text-lg font-bold ${evalResult.faithfulness > 0.7 ? "text-success" : "text-warning"}`}>
-                                      {(evalResult.faithfulness * 100).toFixed(0)}%
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase text-base-content/60">Relevance</span>
-                                    <span className={`text-lg font-bold ${evalResult.relevance > 0.7 ? "text-success" : "text-warning"}`}>
-                                      {(evalResult.relevance * 100).toFixed(0)}%
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="text-xs text-base-content/80 border-t border-info/10 pt-2 mt-1">
-                                  <span className="font-semibold text-info/80">Reasoning: </span>
-                                  {evalResult.reasoning}
-                                </div>
+                                <ScientificEvalDisplay result={evalResult} onReRun={doEval} />
                               </div>
                             ) : null}
                           </div>
@@ -1257,30 +1238,10 @@ export default function Playground() {
 
                             {evalResult ? (
                               <div className="rounded-box border border-info/20 bg-info/5 p-3 space-y-2 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-xs font-bold uppercase text-info tracking-wide flex items-center gap-2">
-                                    <span>🛡️ LLM Evaluation</span>
-                                  </h4>
-                                  <button onClick={() => setEvalResult(null)} className="btn btn-ghost btn-xs btn-circle">×</button>
+                                <div className="flex justify-end mb-1">
+                                  <button onClick={() => setEvalResult(null)} className="btn btn-ghost btn-xs btn-circle text-base-content/50">×</button>
                                 </div>
-                                <div className="flex gap-4">
-                                  <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase text-base-content/60">Faithfulness</span>
-                                    <span className={`text-lg font-bold ${evalResult.faithfulness > 0.7 ? "text-success" : "text-warning"}`}>
-                                      {(evalResult.faithfulness * 100).toFixed(0)}%
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className="text-[10px] uppercase text-base-content/60">Relevance</span>
-                                    <span className={`text-lg font-bold ${evalResult.relevance > 0.7 ? "text-success" : "text-warning"}`}>
-                                      {(evalResult.relevance * 100).toFixed(0)}%
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="text-xs text-base-content/80 border-t border-info/10 pt-2 mt-1">
-                                  <span className="font-semibold text-info/80">Reasoning: </span>
-                                  {evalResult.reasoning}
-                                </div>
+                                <ScientificEvalDisplay result={evalResult} onReRun={doEval} />
                               </div>
                             ) : null}
                           </div>

@@ -41,7 +41,7 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
   const resolvedClientId = clientId ?? DEFAULT_CLIENT_ID;
 
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState<boolean>(authEnabled);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [scriptReady, setScriptReady] = useState<boolean>(!authEnabled);
   const googleReadyRef = useRef(false);
@@ -127,6 +127,7 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
         void handleCredential(credential);
       },
       auto_select: false,
+      use_fedcm_for_prompt: false,
     });
     googleReadyRef.current = true;
   }, [authEnabled, resolvedClientId, handleCredential]);
@@ -189,6 +190,20 @@ export function AuthProvider({ children, enabled, clientId }: AuthProviderProps)
       if (isDismissed || isSkipped) {
         console.warn('[auth] GIS dismissed', dismissed ?? skipped ?? 'unknown');
         resetSignInAttempt(dismissed ?? skipped ?? 'dismissed');
+      } else {
+        // Check for success moment to set a safety watchdog
+        const momentType = typeof notification?.getMomentType === 'function' ? notification.getMomentType() : undefined;
+        if (momentType === 'credential_returned') {
+          console.info('[auth] credential_returned received, waiting for callback...');
+          // If the main callback doesn't fire within 5s, assume failure (e.g. strict origin policy blocking callback)
+          setTimeout(() => {
+            if (signInAttemptRef.current) {
+              console.error('[auth] Login callback timed out. Origin mismatch?');
+              setError('Login callback timed out. Please check console for origin errors.');
+              resetSignInAttempt('timeout');
+            }
+          }, 8000);
+        }
       }
     });
   }, [authEnabled, resetSignInAttempt]);

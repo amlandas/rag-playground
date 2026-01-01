@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:18-slim AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -13,7 +13,7 @@ COPY tsconfig.base.json ./tsconfig.base.json
 COPY apps ./apps
 COPY packages ./packages
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 ARG NEXT_PUBLIC_API_BASE_URL="https://rag-playground-api-908840126213.us-west1.run.app"
 ARG NEXT_PUBLIC_GOOGLE_AUTH_ENABLED="false"
@@ -31,7 +31,7 @@ ENV NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED=${NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED}
 WORKDIR /app/apps/web
 RUN pnpm build
 
-FROM node:18-slim AS runner
+FROM node:24-slim AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
