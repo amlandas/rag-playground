@@ -22,6 +22,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <TourProvider>
             <div className="flex min-h-screen flex-col">
               <SiteNavbar />
+              <div className="bg-warning text-warning-content text-center py-2 text-sm font-medium px-4">
+                This application has been tested to work on Chrome and Firefox browsers only and may not work on other browsers as of now.
+              </div>
               <div className="flex flex-1 flex-col">{children}</div>
             </div>
             <TourOverlay />
