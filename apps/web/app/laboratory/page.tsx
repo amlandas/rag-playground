@@ -646,6 +646,7 @@ export default function Playground() {
         setGraphTrace,
         setShowGraphTrace,
         setError,
+        setEvalResult,
       },
       friendlyError,
     }),
@@ -664,6 +665,7 @@ export default function Playground() {
       setGraphTrace,
       setShowGraphTrace,
       setError,
+      setEvalResult,
       friendlyError,
     ],
   );
@@ -1125,7 +1127,7 @@ export default function Playground() {
                                   {evalLoading ? "Running Eval..." : "Run Eval (LLM Judge)"}
                                 </button>
                               ) : null}
-                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-4o" /> : null}
+                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-5-mini" /> : null}
                             </div>
 
                             {evalResult ? (
@@ -1247,7 +1249,7 @@ export default function Playground() {
                                   {evalLoading ? "Running Eval..." : "Run Eval (LLM Judge)"}
                                 </button>
                               ) : null}
-                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-4o" /> : null}
+                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-5-mini" /> : null}
                             </div>
 
                             {evalResult ? (

@@ -89,7 +89,7 @@ export default function AdvancedSettings({ valueA, valueB, onChange }: Props) {
             <Field
               label="model"
               type="text"
-              value={value.model ?? "gpt-4o-mini"}
+              value={value.model ?? "gpt-4.1-mini"}
               onChange={(next) => onChange(key, { ...value, model: String(next) })}
             />
           </div>

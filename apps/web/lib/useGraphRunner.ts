@@ -34,6 +34,7 @@ type GraphRunnerActions = {
   setGraphTrace: (trace: GraphRagTrace | null) => void;
   setShowGraphTrace: (value: boolean) => void;
   setError: (value: string | null) => void;
+  setEvalResult: (value: null) => void;
 };
 
 type Config = {
@@ -77,6 +78,7 @@ export function useGraphRunner(config: Config) {
       setGraphTrace,
       setShowGraphTrace,
       setError,
+      setEvalResult,
     } = actions;
 
     if (!sessionId) {
@@ -108,6 +110,7 @@ export function useGraphRunner(config: Config) {
     setGraphTrace(null);
     setShowGraphTrace(false);
     setError(null);
+    setEvalResult(null);
 
     const sanitizedRerank =
       graphSettings.rerank === "llm" && !llmRerankAllowed ? "ce" : graphSettings.rerank;

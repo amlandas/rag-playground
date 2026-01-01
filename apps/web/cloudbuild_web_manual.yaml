@@ -1,0 +1,21 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: 
+  - 'build'
+  - '-t'
+  - '$_IMAGE_TAG'
+  - '-f'
+  - 'apps/web/Dockerfile'
+  - '--build-arg'
+  - 'NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=$_GOOGLE_AUTH_ENABLED'
+  - '--build-arg'
+  - 'NEXT_PUBLIC_GOOGLE_CLIENT_ID=$_GOOGLE_CLIENT_ID'
+  - '--build-arg'
+  - 'NEXT_PUBLIC_GRAPH_RAG_ENABLED=true'
+  - '--build-arg'
+  - 'NEXT_PUBLIC_LLM_RERANK_ENABLED=true'
+  - '--build-arg'
+  - 'NEXT_PUBLIC_FACT_CHECK_LLM_ENABLED=true'
+  - '.'
+images:
+- '$_IMAGE_TAG'
