@@ -48,7 +48,7 @@ def evaluate_answer(query: str, answer: str, context: str) -> EvalResult:
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",  # Use a strong model for evaluation
+            model="gpt-5-mini",  # Use a strong model for evaluation
             messages=[
                 {"role": "system", "content": "You are a fair and critical RAG evaluator. Output JSON only."},
                 {"role": "user", "content": PROMPT.format(query=query, context=context, answer=answer)}

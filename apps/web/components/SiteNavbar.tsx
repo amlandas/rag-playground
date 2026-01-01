@@ -13,6 +13,12 @@ export default function SiteNavbar() {
     <header className="sticky top-0 z-40 bg-base-100 shadow-sm backdrop-blur">
       <div className="navbar mx-auto max-w-6xl px-4">
         <div className="navbar-start">
+          <a
+            href="https://simpleflo-site-215079223818.us-central1.run.app"
+            className="btn btn-ghost text-xl font-bold normal-case tracking-tight mr-4"
+          >
+            simpleflo
+          </a>
           <Link href="/" className="flex items-center gap-2 font-semibold text-base-content">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <span className="text-lg font-bold">R</span>

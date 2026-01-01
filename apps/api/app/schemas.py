@@ -25,7 +25,7 @@ class QueryRequest(BaseModel):
     k: int = 8
     similarity: Literal["cosine", "l2"] = "cosine"
     temperature: float = 0.2
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1-mini"
     rerank: bool = False
     mode: Optional[Literal["grounded", "blended"]] = None
 
@@ -44,7 +44,7 @@ class CompareProfile(BaseModel):
     chunk_size: int
     overlap: int
     temperature: float = 0.2
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1-mini"
     rerank: bool = False
 
 
@@ -69,7 +69,7 @@ class Snippet(BaseModel):
 class AnswerFromSnippetsRequest(BaseModel):
     prompt: str
     snippets: List[Snippet]
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1-mini"
     temperature: float = 0.2
 
 

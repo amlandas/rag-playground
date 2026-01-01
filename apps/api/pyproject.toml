@@ -25,6 +25,12 @@ sentence-transformers = "^5.1.2"
 google-auth = "^2.29"
 google-cloud-firestore = "^2.21.0"
 google-cloud-storage = "^2.18.0"
+torch = {version = "^2.2.0", source = "pytorch"}
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

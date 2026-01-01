@@ -37,7 +37,7 @@ export function buildQueryPayload(session_id: string, body: QueryPayload) {
     k: body.k ?? 4,
     similarity: body.similarity ?? "cosine",
     temperature: body.temperature ?? 0.2,
-    model: body.model ?? "gpt-4o-mini",
+    model: body.model ?? "gpt-4.1-mini",
     rerank: body.rerank ?? false,
     mode: body.mode ?? undefined,
   };
@@ -122,7 +122,7 @@ export async function answerFromSnippetsSSE(
   const payload = {
     prompt,
     snippets: snippets.map((snippet) => ({ rank: snippet.rank, text: snippet.text })),
-    model: opts.model ?? "gpt-4o-mini",
+    model: opts.model ?? "gpt-4.1-mini",
     temperature: opts.temperature ?? 0.2,
   };
   const url = `${getApiBaseUrl()}/api/answer_from_snippets`;

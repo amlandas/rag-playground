@@ -190,7 +190,7 @@ export default function Playground() {
     chunk_size: 800,
     overlap: 120,
     temperature: 0.2,
-    model: "gpt-4o-mini",
+    model: "gpt-4.1-mini",
   });
   const [profileB, setProfileB] = useState<CompareProfile>({
     name: "B",
@@ -198,7 +198,7 @@ export default function Playground() {
     chunk_size: 600,
     overlap: 150,
     temperature: 0.2,
-    model: "gpt-4o-mini",
+    model: "gpt-4.1-mini",
   });
   const [retrievedA, setRetrievedA] = useState<RetrievedChunk[]>([]);
   const [retrievedB, setRetrievedB] = useState<RetrievedChunk[]>([]);
@@ -599,7 +599,7 @@ export default function Playground() {
     setEvalResult(null);
     await querySSE(
       sessionId,
-      { query, k: 4, similarity: "cosine", temperature: 0.2, model: "gpt-4o-mini", mode: answerMode },
+      { query, k: 4, similarity: "cosine", temperature: 0.2, model: "gpt-4.1-mini", mode: answerMode },
       {
         onRetrieved: (payload: RetrievedPrelude) => {
           if (payload.query_id) {
