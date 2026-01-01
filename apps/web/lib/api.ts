@@ -3,6 +3,11 @@ type EnvLike = Record<string, string | undefined> | NodeJS.ProcessEnv;
 const FALLBACK_API_BASE_URL = "https://rag-playground-api-908840126213.us-west1.run.app";
 
 export function resolveApiBase(env: EnvLike = process.env): string {
+  if (typeof window !== "undefined") {
+    // Client-side: use relative path to leverage Next.js rewrites (proxy)
+    // This solves Safari ITP/Third-Party Cookie issues.
+    return "";
+  }
   const cleaned = env?.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (!cleaned) {
     return FALLBACK_API_BASE_URL;
