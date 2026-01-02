@@ -106,11 +106,11 @@ def cookie_secure_flag() -> bool:
         has_secure_candidate = True
         break
     if not has_secure_candidate:
+        # If running in Cloud Run, force Secure=True
+        if os.getenv("K_SERVICE"):
+             return True
         return False
-    config_env = _config_env()
-    if config_env == "local" and not settings.ALLOW_ORIGINS:
-        # Fallback defaults include hosted origins; avoid forcing Secure locally unless explicitly configured.
-        return False
+    # Trust the allowed origins check
     return True
 
 

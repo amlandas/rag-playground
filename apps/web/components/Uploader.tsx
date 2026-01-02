@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useRef, useState } from "react";
+import ProgressBar from "./ProgressBar";
 
 import { UPLOAD_MAX_FILE_MB } from "../lib/uploadLimits";
 
@@ -55,9 +56,8 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
       />
       <div
         data-tour-id="uploader-dropzone"
-        className={`rounded-box border-2 border-dashed ${
-          isDragging ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50"
-        } px-4 py-6 text-center text-sm transition-all duration-200 hover:border-primary hover:bg-base-100 hover:shadow-md focus-visible:outline-none focus-visible:ring focus-visible:ring-primary/40`}
+        className={`rounded-box border-2 border-dashed ${isDragging ? "border-primary bg-primary/5" : "border-base-300 bg-base-200/50"
+          } px-4 py-6 text-center text-sm transition-all duration-200 hover:border-primary hover:bg-base-100 hover:shadow-md focus-visible:outline-none focus-visible:ring focus-visible:ring-primary/40`}
         onClick={handlePick}
         onDragOver={(event) => {
           event.preventDefault();
@@ -89,14 +89,21 @@ export default function Uploader({ disabled, onFilesSelected, onUseSamples }: Pr
           PDF, TXT, or MD · Up to {UPLOAD_MAX_FILE_MB}MB each · Max 20 files
         </p>
       </div>
+
+      {busy && (
+        <div className="w-full">
+          <ProgressBar label="Uploading..." className="w-full" />
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <button
           data-tour-id="uploader-samples"
           onClick={handleUseSamples}
-          disabled={disabled}
+          disabled={disabled || busy}
           className="btn btn-ghost btn-outline btn-xs sm:btn-sm interactive-button"
         >
-          {busy ? "Loading…" : "Use sample dataset"}
+          Use sample dataset
         </button>
         <button
           onClick={handlePick}

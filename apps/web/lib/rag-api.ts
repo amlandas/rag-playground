@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./api";
+import { getApiBaseUrl, getDirectApiBaseUrl } from "./api";
 import { postSSE } from "./sse";
 import type {
   AdminMetricsSummary,
@@ -44,7 +44,7 @@ export function buildQueryPayload(session_id: string, body: QueryPayload) {
 }
 
 export async function uploadFiles(files: File[]): Promise<UploadResponse> {
-  const url = `${getApiBaseUrl()}/api/upload`;
+  const url = `${getDirectApiBaseUrl()}/api/upload`;
   const form = new FormData();
   for (const file of files) {
     form.append("files", file, file.name);

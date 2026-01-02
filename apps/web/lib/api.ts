@@ -3,11 +3,7 @@ type EnvLike = Record<string, string | undefined> | NodeJS.ProcessEnv;
 const FALLBACK_API_BASE_URL = "https://rag-playground-api-908840126213.us-west1.run.app";
 
 export function resolveApiBase(env: EnvLike = process.env): string {
-  if (typeof window !== "undefined") {
-    // Client-side: use relative path to leverage Next.js rewrites (proxy)
-    // This solves Safari ITP/Third-Party Cookie issues.
-    return "";
-  }
+  // Always use the full API URL for consistency (Direct API)
   const cleaned = env?.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (!cleaned) {
     return FALLBACK_API_BASE_URL;
@@ -27,6 +23,13 @@ export function getApiBaseUrl(): string {
     loggedBaseUrl = true;
   }
   return API_BASE_URL;
+}
+
+export function getDirectApiBaseUrl(): string {
+  // Always return the absolute URL, bypassing the proxy logic
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const url = (envUrl && envUrl.replace(/\/$/, "")) || FALLBACK_API_BASE_URL;
+  return url;
 }
 
 async function handle<T>(res: Response): Promise<T> {

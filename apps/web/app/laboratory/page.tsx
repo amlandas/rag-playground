@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState, type SVGProps } from "react";
 import AdvancedSettings from "../../components/AdvancedSettings";
 import FeedbackBar from "../../components/FeedbackBar";
+import ProgressBar from "../../components/ProgressBar";
 import GraphRagTraceViewer from "../../components/GraphRagTraceViewer";
 import HealthBadge from "../../components/HealthBadge";
 import ProfileAnswerCard from "../../components/ProfileAnswerCard";
@@ -943,44 +944,62 @@ export default function Playground() {
                     />
                     <div className="flex flex-shrink-0 gap-2">
                       {mode === "simple" ? (
-                        <button
-                          type="button"
-                          onClick={doQuerySimple}
-                          className="btn btn-primary interactive-button"
-                          disabled={!canQuery}
-                          data-tour-id="run-button"
-                        >
-                          {busy === "querying" ? <LoadingBadge label="Running" /> : "Run"}
-                        </button>
+                        <div className="min-w-[100px]">
+                          {busy === "querying" ? (
+                            <ProgressBar label="Running" />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={doQuerySimple}
+                              className="btn btn-primary interactive-button"
+                              disabled={!canQuery}
+                              data-tour-id="run-button"
+                            >
+                              Run
+                            </button>
+                          )}
+                        </div>
                       ) : null}
                       {mode === "advanced" ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await runCompare();
-                            void refreshHistory();
-                          }}
-                          className="btn btn-primary interactive-button"
-                          disabled={!canCompare}
-                          data-tour-id="run-button"
-                        >
-                          {busy === "comparing" ? <LoadingBadge label="Comparing" /> : "Run A/B"}
-                        </button>
+                        <div className="min-w-[120px]">
+                          {busy === "comparing" ? (
+                            <ProgressBar label="Comparing" />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await runCompare();
+                                void refreshHistory();
+                              }}
+                              className="btn btn-primary interactive-button"
+                              disabled={!canCompare}
+                              data-tour-id="run-button"
+                            >
+                              Run A/B
+                            </button>
+                          )}
+                        </div>
                       ) : null}
                       {mode === "graph" ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void runGraphQuery();
-                          }}
-                          className="btn btn-primary interactive-button"
-                          disabled={
-                            !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
-                          }
-                          data-tour-id="run-button"
-                        >
-                          {busy === "querying" ? <LoadingBadge label="Graph RAG" /> : "Run Graph RAG"}
-                        </button>
+                        <div className="min-w-[140px]">
+                          {busy === "querying" ? (
+                            <ProgressBar label="Graph RAG" />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void runGraphQuery();
+                              }}
+                              className="btn btn-primary interactive-button"
+                              disabled={
+                                !authSatisfied || authGateActive || !indexed || !query.trim() || busy === "querying"
+                              }
+                              data-tour-id="run-button"
+                            >
+                              Run Graph RAG
+                            </button>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -1119,16 +1138,19 @@ export default function Playground() {
                           <div className="flex flex-col gap-2 mt-2">
                             <div className="flex flex-wrap justify-between items-center">
                               {answerComplete && !evalResult ? (
-                                <button
-                                  type="button"
-                                  onClick={doEval}
-                                  className="btn btn-xs btn-outline"
-                                  disabled={evalLoading}
-                                >
-                                  {evalLoading ? "Running Eval..." : "Run Eval (LLM Judge)"}
-                                </button>
+                                evalLoading ? (
+                                  <div className="w-32"><ProgressBar label="Evaluating" /></div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={doEval}
+                                    className="btn btn-xs btn-outline"
+                                    disabled={evalLoading}
+                                  >
+                                    Run Eval (LLM Judge)
+                                  </button>
+                                )
                               ) : null}
-                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-5-mini" /> : null}
                             </div>
                             <div className="text-[10px] text-base-content/50 italic px-1">
                               Note: AI-based evals may produce non-deterministic results.
@@ -1224,16 +1246,19 @@ export default function Playground() {
                           <div className="flex flex-col gap-2">
                             <div className="flex flex-wrap justify-between items-center">
                               {answerComplete && !evalResult ? (
-                                <button
-                                  type="button"
-                                  onClick={doEval}
-                                  className="btn btn-xs btn-outline"
-                                  disabled={evalLoading}
-                                >
-                                  {evalLoading ? "Running Eval..." : "Run Eval (LLM Judge)"}
-                                </button>
+                                evalLoading ? (
+                                  <div className="w-32"><ProgressBar label="Evaluating" /></div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={doEval}
+                                    className="btn btn-xs btn-outline"
+                                    disabled={evalLoading}
+                                  >
+                                    Run Eval (LLM Judge)
+                                  </button>
+                                )
                               ) : null}
-                              {evalLoading ? <LoadingBadge label="Evaluating w/ GPT-5-mini" /> : null}
                             </div>
 
                             {evalResult ? (
