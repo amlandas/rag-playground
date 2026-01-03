@@ -14,7 +14,7 @@ export default function SiteNavbar() {
       <div className="navbar mx-auto max-w-6xl px-4">
         <div className="navbar-start">
           <a
-            href="https://simpleflo-site-215079223818.us-central1.run.app"
+            href="https://simpleflo.dev"
             className="btn btn-ghost text-xl font-bold normal-case tracking-tight mr-4"
           >
             simpleflo

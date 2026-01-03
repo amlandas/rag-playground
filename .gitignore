@@ -35,6 +35,7 @@ __pycache__/
 *.sqlite3
 .local/
 logs/
+AGENTS.md
 DaisyUI_Upgrade_Plan.txt
 Milestone2_V3_Plan.txt
 System_Infra.md
