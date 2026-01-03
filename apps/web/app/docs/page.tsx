@@ -53,7 +53,7 @@ export default function DocsPage() {
                                 <h4 className="font-bold mb-2">Detailed Steps:</h4>
                                 <ol className="list-decimal list-inside space-y-2">
                                     <li><strong>Access:</strong> Navigate to the <code>/laboratory</code> page. Sign in if required.</li>
-                                    <li><strong>Upload:</strong> Drag & drop your PDF/TXT/MD files into the upload zone (max 32MB/file).</li>
+                                    <li><strong>Upload:</strong> Drag & drop your PDF/TXT/MD files into the upload zone (max 100MB/file).</li>
                                     <li><strong>Index:</strong> Click the <kbd className="kbd kbd-sm">Build index</kbd> button and wait for "Indexed: yes".</li>
                                     <li><strong>Query:</strong> Type your question (e.g., "What does the policy say about vacation?") and hit <strong>Run</strong>.</li>
                                 </ol>

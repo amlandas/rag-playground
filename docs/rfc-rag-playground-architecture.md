@@ -122,7 +122,7 @@ These are build-time and govern what the UI exposes, not how the backend behaves
 3.3 Ingestion modes & limits
 	•	Legacy in-memory uploads: `/api/upload` reads multipart bodies into memory and persists extracted text in the per-session cache. This path stays active when `GCS_INGESTION_ENABLED=false` (local dev, older environments).
 	•	GCS-backed ingestion: when GCS ingestion is enabled, uploads stream directly to GCS and the indexer downloads bytes per document before chunking/embedding. Session prefixes make TTL cleanup easy.
-	•	Cloud Run enforces ~32MB request bodies, so we cap uploads at **30MB per file** in the UI to avoid platform 413 errors. Larger uploads will move to a direct-to-GCS signed URL flow so 100MB+ files bypass the Cloud Run proxy entirely.
+	•	Cloud Run enforces ~32MB request bodies; the UI limit now matches the backend max (100MB), but uploads above ~32MB will still require direct-to-GCS signed URLs to avoid 413s.
 	•	app/services/advanced.py – Graph RAG pipeline:
 	•	Planner, graph traversal, hybrid retrieval.
 	•	LLM summarisation + synthesis.
