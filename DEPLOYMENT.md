@@ -65,7 +65,7 @@ The pipeline:
 | `_IMAGE` | `us-west1-docker.pkg.dev/rag-playground-authn/rag-playground/rag-playground-web:$SHORT_SHA` | Matches Artifact Registry repo. |
 | `_SERVICE_NAME_WEB` | `rag-playground-web` | Cloud Run web service. |
 | `_REGION` | `us-west1` |  |
-| `_API_BASE_URL` | `https://rag-playground-api-908840126213.us-west1.run.app` | Baked into the Next.js build. |
+| `_API_BASE_URL` | `https://api.scientia.simpleflo.dev` | Baked into the Next.js build. |
 | `_NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | `true` | Controls client auth UX. |
 | `_NEXT_PUBLIC_GOOGLE_CLIENT_ID` | `908840126213-xxxxxxxxxxxxxxxx.apps.googleusercontent.com` | Only required when auth on. |
 | `_NEXT_PUBLIC_GRAPH_RAG_ENABLED` | `false` | Toggle Graph RAG UI. |

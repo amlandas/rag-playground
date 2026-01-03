@@ -1,6 +1,6 @@
 type EnvLike = Record<string, string | undefined> | NodeJS.ProcessEnv;
 
-const FALLBACK_API_BASE_URL = "https://rag-playground-api-908840126213.us-west1.run.app";
+const FALLBACK_API_BASE_URL = "https://api.scientia.simpleflo.dev";
 
 export function resolveApiBase(env: EnvLike = process.env): string {
   // Always use the full API URL for consistency (Direct API)

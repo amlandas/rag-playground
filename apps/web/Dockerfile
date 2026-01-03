@@ -15,7 +15,7 @@ COPY packages ./packages
 
 RUN pnpm install --no-frozen-lockfile
 
-ARG NEXT_PUBLIC_API_BASE_URL="https://rag-playground-api-908840126213.us-west1.run.app"
+ARG NEXT_PUBLIC_API_BASE_URL="https://api.scientia.simpleflo.dev"
 ARG NEXT_PUBLIC_GOOGLE_AUTH_ENABLED="false"
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
 ARG NEXT_PUBLIC_GRAPH_RAG_ENABLED="false"

@@ -10,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "https://rag-playground-api-908840126213.us-west1.run.app/api/:path*",
+        destination: "https://api.scientia.simpleflo.dev/api/:path*",
       },
     ];
   },

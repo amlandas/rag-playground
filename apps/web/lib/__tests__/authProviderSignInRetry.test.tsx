@@ -63,8 +63,9 @@ async function runAuthRetryScenario() {
           credentialCallback = config.callback;
         },
         prompt: (_config: any, callback?: (notification: any) => void) => {
-          if (callback) {
-            promptCallbacks.push(callback);
+          const listener = typeof _config === "function" ? _config : callback;
+          if (listener) {
+            promptCallbacks.push(listener);
           }
         },
         cancel: () => {
