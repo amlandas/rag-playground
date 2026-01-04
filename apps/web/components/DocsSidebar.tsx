@@ -8,14 +8,12 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-    { label: "Quick Start", href: "#quick-start" },
-    { label: "RAG Modes", href: "#rag-modes" },
-    { label: "Document Management", href: "#documents" },
-    { label: "Query Settings", href: "#query-config" },
-    { label: "Evaluation", href: "#evaluation" },
-    { label: "System Status", href: "#monitoring" },
-    { label: "Workflows", href: "#workflows" },
-    { label: "Troubleshooting", href: "#troubleshooting" },
+    { label: "Quickstart", href: "#quick-start" },
+    { label: "Modes", href: "#modes" },
+    { label: "Evals", href: "#evals" },
+    { label: "Failure modes", href: "#failure-modes" },
+    { label: "Traces", href: "#traces" },
+    { label: "FAQ", href: "#faq" },
 ];
 
 export default function DocsSidebar() {
