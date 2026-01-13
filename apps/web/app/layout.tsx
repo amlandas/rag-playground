@@ -17,6 +17,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   return (
     <html lang="en" data-theme="dark">
+      <head>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-WNLJMWSG9W" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'G-WNLJMWSG9W');`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-base-200 text-base-content antialiased" data-theme-ready="false">
         <AuthProvider enabled={googleAuthEnabled} clientId={googleClientId}>
           <TourProvider>
